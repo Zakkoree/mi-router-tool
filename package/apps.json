@@ -1,5 +1,5 @@
 {
-  "source_name": "mikit",
+  "source_id": "mikit",
   "apps": [
     {
       "id": "beszel_agent",
