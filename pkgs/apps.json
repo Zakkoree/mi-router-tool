@@ -1,6 +1,6 @@
 {
   "source_id": "mikit",
-  "source_url": "https://github.com/Zakkoree/mi-router-tool/main/pkgs",
+  "source_url": "https://github.com/Zakkoree/mi-router-tool",
   "apps": [
     {
       "id": "beszel_agent",
