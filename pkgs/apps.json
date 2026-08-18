@@ -7,7 +7,7 @@
       "name": "Beszel Agent",
       "version": "0.7.3",
       "author": "Henry",
-      "arch": "arm64|armv7l|armv5l",
+      "arch": "arm64|armv7|armv5",
       "desc": "轻量级服务器监控 Agent",
       "url": "https://cdn.example.com/pkgs/beszel-agent-0.7.3.tar.gz"
     },
