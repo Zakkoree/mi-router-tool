@@ -3,7 +3,8 @@
 # ==========================================
 # Mikit 工具箱一键安装脚本
 # ==========================================
-
+# sh -c "$(curl -kfsSl --connect-timeout 10  https://fastly.jsdelivr.net/gh/Zakkoree/mi-router-tool@main/install.sh)" && source /etc/profile &> /dev/null
+# curl -sSL --connect-timeout 10 "https://fastly.jsdelivr.net/gh/Zakkoree/mi-router-tool@main/install.sh" | sh /dev/stdin < /dev/tty
 set -e
 clear
 
@@ -51,6 +52,12 @@ while true; do
     echo -e "${C_BLUE}==========================================${C_RESET}"
     echo -e "           欢迎安装 Mikit 工具箱        "
     echo -e "${C_BLUE}==========================================${C_RESET}"
+
+    if command -v mikit >/dev/null 2>&1; then
+        info "检测到已安装 mikit 工具，您可以通过输入 'mikit' 来启动工具箱。"
+        read -r -p "按任意按键退出..." dummy
+        exit 0
+    fi
 
     # 1. 突出显示硬件检测结果
     echo -e " 📦 系统环境检测："
@@ -107,15 +114,58 @@ while true; do
 done
 
 echo -e "${C_BLUE}==========================================${C_RESET}"
-LATEST_URL="https://mirror.mikus.ink/https://github.com/Zakkoree/mi-router-tool/releases/latest/download/mikit.tar.gz"
+RAW_URL="https://github.com/Zakkoree/mi-router-tool/releases/latest/download/mikit.tar.gz"
 TEMP_PKG="/tmp/mikit.tar.gz"
+DOWNLOAD_SUCCESS=0
+
+local mirrors_def="
+ghproxy.net|https://ghproxy.net/
+mirror.mikus.ink|https://mirror.mikus.ink/
+gh.996986.xyz|https://gh.996986.xyz/
+wget.la|https://wget.la/
+"
 
 info "下载 Mikit 程序包..."
-if ! curl -fsSL --connect-timeout 10 "$LATEST_URL" -o "$TEMP_PKG" >/dev/null 2>&1 || [ ! -s "$TEMP_PKG" ]; then
-    error "下载失败，请检查网络连接"
+
+# 1. 优先尝试 GitHub 官方直连地址
+info "正在尝试 GitHub 直连下载..."
+if curl -fsSL --connect-timeout 3 -m 5 "$RAW_URL" -o "$TEMP_PKG" >/dev/null 2>&1 && [ -s "$TEMP_PKG" ]; then
+    DOWNLOAD_SUCCESS=1
+    info "✅ 直连下载成功！"
+fi
+
+# 2. 如果直连失败，循环尝试镜像源
+if [ "$DOWNLOAD_SUCCESS" -ne 1 ]; then
+    warn "⚠️ 直连失败，正在尝试代理加速镜像..."
+
+    for item in $mirrors_def; do
+        # 拆解名称与 URL 地址
+        local name="${item%%|*}"
+        local url="${item#*|}"
+
+        # 过滤空行或异常格式
+        [ -z "$name" ] || [ -z "$url" ] && continue
+
+        # 拼接镜像下载 URL
+        DOWNLOAD_URL="${url}${RAW_URL}"
+        info "尝试镜像: $name ..."
+
+        if curl -fsSL --connect-timeout 3 -m 5 "$DOWNLOAD_URL" -o "$TEMP_PKG" >/dev/null 2>&1 && [ -s "$TEMP_PKG" ]; then
+            DOWNLOAD_SUCCESS=1
+            info "✅ 镜像下载成功 ($name)"
+            break
+        else
+            warn "⚠️ 镜像 [$name] 连接失败，切换下一个..."
+            rm -f "$TEMP_PKG"
+        fi
+    done
+fi
+
+# 3. 最终结果校验
+if [ "$DOWNLOAD_SUCCESS" -ne 1 ]; then
+    error "❌ 所有下载通道均尝试失败，请检查网络连接！"
     exit 1
 fi
-info "下载成功"
 
 # 1. 确保上级目录存在 (比如 /data)
 mkdir -p "$INSTALL_DIR"
