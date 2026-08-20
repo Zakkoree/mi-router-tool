@@ -217,6 +217,8 @@ chmod -R +x "$INSTALL_DIR/mikit"
 "$INSTALL_DIR/mikit/core/init.sh"
 "$INSTALL_DIR/mikit/core/post_install.sh"
 
+[ -f /etc/profile ] && . /etc/profile >/dev/null 2>&1
+
 echo -e "\n${C_GREEN}=========================================="
 echo -e " 🎉 Mikit 工具箱安装成功！"
 echo -e " 工具目录: $INSTALL_DIR/mikit"
