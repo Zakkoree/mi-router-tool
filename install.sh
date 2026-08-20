@@ -1,0 +1,167 @@
+#!/bin/sh
+
+# ==========================================
+# Mikit 工具箱一键安装脚本
+# ==========================================
+
+set -e
+clear
+
+# 颜色定义
+C_RED='\033[31m'
+C_GREEN='\033[32m'
+C_YELLOW='\033[33m'
+C_BLUE='\033[34m'
+C_RESET='\033[0m'
+
+info() { echo -e "${C_GREEN}[INFO]${C_RESET} $1"; }
+warn() { echo -e "${C_YELLOW}[WARN]${C_RESET} $1"; }
+error() { echo -e "${C_RED}[ERROR]${C_RESET} $1"; exit 1; }
+
+[ "$(id -u)" -ne 0 ] && error "请使用 root 用户运行此脚本！"
+
+# 硬件检测函数
+detect_usb_storage() {
+    USB=""
+    if [ -f /etc/config/disk ]; then
+        USB="disk"
+        return 0
+    fi
+    for mount_point in $(awk '$2 ~ /^\/extdisks\/|\/mnt\// {print $2}' /proc/mounts 2>/dev/null); do
+        if [ -d "$mount_point" ] && [ "$mount_point" != "/data" ]; then
+            if touch "$mount_point/.mikit_test" 2>/dev/null; then
+                rm -f "$mount_point/.mikit_test"
+                USB="$mount_point"
+                break
+            fi
+        fi
+    done
+}
+
+detect_usb_storage
+INSTALL_DIR="/data"
+
+# 获取主目录所在分区的可用空间大小
+ROM_FREE_SPACE=$(df -h "/data" 2>/dev/null | awk 'NR==2 {print $4}')
+[ -z "$ROM_FREE_SPACE" ] && ROM_FREE_SPACE="未知"
+
+# ==================== 优化的美观交互界面 ====================
+while true; do
+    clear
+    echo -e "${C_BLUE}==========================================${C_RESET}"
+    echo -e "           欢迎安装 Mikit 工具箱        "
+    echo -e "${C_BLUE}==========================================${C_RESET}"
+
+    # 1. 突出显示硬件检测结果
+    echo -e " 📦 系统环境检测："
+    if [ "$USB" = "disk" ]; then
+        echo -e "    👉 ${C_GREEN}[ 检测到硬盘版 ]${C_RESET} 推荐使用: /userdisk/data"
+    elif [ -z "$USB" ]; then
+        echo -e "    👉 ${C_YELLOW}[ 检测到未挂载U盘 ]${C_RESET} 空间紧张，建议外挂U盘"
+    else
+        echo -e "    👉 ${C_GREEN}[ 检测到外置存储 ]${C_RESET} 路径: $USB"
+    fi
+
+    echo -e "    👉 系统 ROM (/data) 剩余空间: ${C_YELLOW}$ROM_FREE_SPACE${C_RESET}"
+    echo -e "${C_BLUE}------------------------------------------${C_RESET}"
+
+    # 2. 引导输入
+    echo -e " 请设置插件（Apps）的安装目录："
+    case "$USB" in
+        /mnt*)
+            echo -e "   • USB版推荐: " /mnt/usb-*
+            ;;
+        /extdisks*)
+            echo -e "   • USB版推荐: " /extdisks/sd*
+            ;;
+        *)
+            echo -e "   • USB版推荐: " /mnt/usb-*  /extdisks/sd*
+            ;;
+            esac
+    echo -e "   • 硬盘版推荐: "/userdisk/data
+    echo ""
+
+
+    read -r -p " 请输入应用安装目录: " user_input_apps_dir
+
+    APPS_DIR="$user_input_apps_dir"
+    case "$APPS_DIR" in
+        /*)
+            ;;
+        *)
+            echo ""
+            warn "路径格式错误！绝对路径必须以斜杠 '/' 开头"
+            read -r -p "请按回车键重试..." dummy
+            continue
+            ;;
+    esac
+    # 验证目录是否可写
+    if mkdir -p "$APPS_DIR" 2>/dev/null && touch "$APPS_DIR/.mikit_test" 2>/dev/null; then
+        rm -f "$APPS_DIR/.mikit_test"
+        break
+    else
+        echo ""
+        warn "路径 [$APPS_DIR] 无法写入或无效！"
+        read -r -p "请按回车键重试..." dummy
+    fi
+done
+
+echo -e "${C_BLUE}==========================================${C_RESET}"
+LATEST_URL="https://mirror.mikus.ink/https://github.com/Zakkoree/mi-router-tool/releases/latest/download/mikit.tar.gz"
+TEMP_PKG="/tmp/mikit.tar.gz"
+
+info "下载 Mikit 程序包..."
+if ! curl -fsSL --connect-timeout 10 "$LATEST_URL" -o "$TEMP_PKG" >/dev/null 2>&1 || [ ! -s "$TEMP_PKG" ]; then
+    error "下载失败，请检查网络连接"
+    exit 1
+fi
+info "下载成功"
+
+# 1. 确保上级目录存在 (比如 /data)
+mkdir -p "$INSTALL_DIR"
+
+# 2. 直接解压到 /data 目录下
+# 因为压缩包自带 mikit 文件夹，解压后会自动在 /data 下生成 /data/mikit
+if ! tar -zxf "$TEMP_PKG" -C "$INSTALL_DIR"; then
+    error "解压程序包失败！"
+    rm -f "$TEMP_PKG"
+    exit 1
+fi
+rm -f "$TEMP_PKG"
+
+info "程序包解压完成"
+
+# 3. 创建数据目录
+mkdir -p "$INSTALL_DIR/mikit/data" "$INSTALL_DIR/mikit/apps" "$INSTALL_DIR/mikit/apps_data" "$APPS_DIR/.mikit_data/apps" "$APPS_DIR/.mikit_data/apps_data"
+
+# 4. 检查 profile 文件是否存在，存在再修改，避免 sed 报错
+sed -i "s|export MIKIT_DATA_DIR=.*|export MIKIT_DATA_DIR=$APPS_DIR/.mikit_data|" "$INSTALL_DIR/mikit/core/profile"
+
+# 5. 初始化数据库配置
+CONFIG_FILE="$INSTALL_DIR/mikit/data/mikit_db"
+info "正在初始化配置文件..."
+cat <<EOF > "$CONFIG_FILE"
+config app 'mikit'
+  option dnsmasq '1'
+  option docker '0'
+EOF
+
+info "初始化配置完成"
+CUSTOM_FILE="$INSTALL_DIR/mikit/data/custom_script.sh"
+cat <<EOF > "$CUSTOM_FILE"
+#!/bin/sh
+
+# 自定义自启脚本
+EOF
+
+chmod -R +x "$INSTALL_DIR/mikit"
+
+"$INSTALL_DIR/mikit/core/init.sh"
+"$INSTALL_DIR/mikit/core/post_install.sh"
+
+echo -e "\n${C_GREEN}=========================================="
+echo -e " 🎉 Mikit 工具箱安装成功！"
+echo -e " 工具目录: $INSTALL_DIR/mikit"
+echo -e " 插件目录: $APPS_DIR/.mikit_data"
+echo -e " 您现在可以通过输入 'mikit' 来启动工具箱。"
+echo -e "==========================================${C_RESET}"
