@@ -205,9 +205,9 @@ cat <<EOF > "$CUSTOM_FILE"
 
 # 自定义自启脚本
 EOF
-touch "$INSTALL_DIR/mikit/data/mikit_cron.conf"
+touch "$INSTALL_DIR/mikit/data/mikit_cron_db"
 
-MIKIT_HOSTS_FILE="$INSTALL_DIR/mikit/data/mikit_hosts.conf"
+MIKIT_HOSTS_FILE="$INSTALL_DIR/mikit/data/dnsmasq_db"
 cat <<EOF > "$MIKIT_HOSTS_FILE"
 config dnsmasq
 EOF
