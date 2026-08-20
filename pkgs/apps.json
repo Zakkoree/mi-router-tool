@@ -12,12 +12,12 @@
       "url": "https://cdn.example.com/pkgs/beszel-agent-0.7.3.tar.gz"
     },
     {
-      "id": "alist",
-      "name": "AList",
-      "version": "3.35.0",
+      "id": "zerotier",
+      "name": "Zerotier",
+      "version": "1.0.0",
       "author": "Xhofe",
       "arch": "all",
-      "desc": "支持多种存储的文件列表程序",
+      "desc": "zxzcxzcxzxzczxczxczxczxczxczx",
       "url": "https://cdn.example.com/pkgs/alist-3.35.0.tar.gz"
     }
   ]
