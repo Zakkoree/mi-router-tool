@@ -11,6 +11,9 @@ set -e
 clear
 
 # 颜色定义
+C_CYAN='\033[36m'
+C_DIM='\033[2m'
+C_BOLD='\033[1m'
 C_RED='\033[31m'
 C_GREEN='\033[32m'
 C_YELLOW='\033[33m'
@@ -51,9 +54,9 @@ ROM_FREE_SPACE=$(df -h "/data" 2>/dev/null | awk 'NR==2 {print $4}')
 # ==================== 优化的美观交互界面 ====================
 while true; do
     clear
-    echo -e "${C_BLUE}==========================================${C_RESET}"
-    echo -e "           MIKIT • Mi-Toolkit 安装程序        "
-    echo -e "${C_BLUE}==========================================${C_RESET}"
+    echo -e "${C_CYAN}====================================================${C_RESET}"
+    echo -e "           ${C_BOLD}${C_GREEN}MIKIT • Mi-Toolkit 安装程序${C_RESET}"
+    echo -e "${C_CYAN}====================================================${C_RESET}"
 
     if command -v mikit >/dev/null 2>&1; then
         info "检测到已安装 mikit 工具，您可以通过输入 'mikit' 来启动工具箱。"
@@ -72,7 +75,7 @@ while true; do
     fi
 
     echo -e "    👉 系统 ROM (/data) 剩余空间: ${C_YELLOW}$ROM_FREE_SPACE${C_RESET}"
-    echo -e "${C_BLUE}------------------------------------------${C_RESET}"
+    echo -e " ${C_CYAN}----------------------------------------------------${C_RESET}"
 
     # 2. 引导输入
     echo -e " 请设置插件（Apps）的安装目录："
@@ -115,7 +118,7 @@ while true; do
     fi
 done
 
-echo -e "${C_BLUE}==========================================${C_RESET}"
+echo -e "${C_CYAN}====================================================${C_RESET}"
 RAW_URL="https://github.com/Zakkoree/mi-router-tool/releases/latest/download/mikit.tar.gz"
 TEMP_PKG="/tmp/mikit.tar.gz"
 DOWNLOAD_SUCCESS=0
@@ -224,14 +227,16 @@ EOF
 "$INSTALL_DIR/mikit/core/post_install.sh"
 
 [ -f /etc/profile ] && . /etc/profile >/dev/null 2>&1
-
-echo -e "\n${C_GREEN}=========================================="
-echo -e " 🎉 MIKIT • Mi-Toolkit 安装成功！"
-echo -e " 您是第 ${up_count:-1} 位安装的小伙伴 ~"
-echo -e " 工具目录: $INSTALL_DIR/mikit"
-echo -e " 插件目录: $APPS_DIR/.mikit_data"
-echo -e " 之后可以通过输入 'mikit' 来启动工具箱。"
-echo -e "==========================================${C_RESET}"
+echo ""
+echo -e "${C_CYAN}====================================================${C_RESET}"
+echo -e " ${C_BOLD}${C_GREEN}🎉 MIKIT • Mi-Toolkit 安装成功！${C_RESET}"
+echo -e " ${C_DIM}感谢支持！您是第${C_RESET} ${C_BOLD}${C_YELLOW}${up_count:-1}${C_RESET} ${C_DIM}位使用的小伙伴 ~${C_RESET}"
+echo -e " ${C_CYAN}----------------------------------------------------${C_RESET}"
+echo -e " 📂 ${C_BOLD}工具目录:${C_RESET} ${C_DIM}$INSTALL_DIR/mikit${C_RESET}"
+echo -e " 🔌 ${C_BOLD}插件目录:${C_RESET} ${C_DIM}$APPS_DIR/.mikit_data${C_RESET}"
+echo -e " ${C_CYAN}----------------------------------------------------${C_RESET}"
+echo -e " 🚀 输入 ${C_BOLD}${C_GREEN}mikit${C_RESET} 即可随时启动工具箱"
+echo -e "${C_CYAN}====================================================${C_RESET}"
 echo ""
 read -r -p "👉 按回车键启动..." dummy
 
