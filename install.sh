@@ -133,7 +133,7 @@ info "下载 Mikit 程序包..."
 info "正在尝试 GitHub 直连下载..."
 if curl -fsSL --connect-timeout 3 -m 5 "$RAW_URL" -o "$TEMP_PKG" >/dev/null 2>&1 && [ -s "$TEMP_PKG" ]; then
     DOWNLOAD_SUCCESS=1
-    info "✅ 直连下载成功！"
+    info "下载成功！"
 fi
 
 # 2. 如果直连失败，循环尝试镜像源
@@ -154,7 +154,7 @@ if [ "$DOWNLOAD_SUCCESS" -ne 1 ]; then
 
         if curl -fsSL --connect-timeout 3 -m 5 "$DOWNLOAD_URL" -o "$TEMP_PKG" >/dev/null 2>&1 && [ -s "$TEMP_PKG" ]; then
             DOWNLOAD_SUCCESS=1
-            info "✅ 镜像下载成功 ($name)"
+            info "下载成功"
             break
         else
             warn "⚠️ 镜像 [$name] 连接失败，切换下一个..."
