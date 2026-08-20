@@ -53,7 +53,7 @@ while true; do
     echo -e "           欢迎安装 Mikit 工具箱        "
     echo -e "${C_BLUE}==========================================${C_RESET}"
 
-    if command -v mikit >/dev/null 2>&1; then
+    if ! command -v mikit >/dev/null 2>&1; then
         info "检测到已安装 mikit 工具，您可以通过输入 'mikit' 来启动工具箱。"
         read -r -p "按任意按键退出..." dummy
         exit 0
