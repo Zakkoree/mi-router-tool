@@ -52,7 +52,7 @@ ROM_FREE_SPACE=$(df -h "/data" 2>/dev/null | awk 'NR==2 {print $4}')
 while true; do
     clear
     echo -e "${C_BLUE}==========================================${C_RESET}"
-    echo -e "           欢迎安装 Mikit 工具箱        "
+    echo -e "           MIKIT • Mi-Toolkit 安装程序        "
     echo -e "${C_BLUE}==========================================${C_RESET}"
 
     if command -v mikit >/dev/null 2>&1; then
@@ -226,12 +226,12 @@ EOF
 [ -f /etc/profile ] && . /etc/profile >/dev/null 2>&1
 
 echo -e "\n${C_GREEN}=========================================="
-echo -e " ${C_PURPLE}🎉 MIKIT 工具箱安装成功！${C_RESET}"
-echo -e " 您是第 ${C_CYAN}${up_count:-1}${C_RESET} 位安装 MIKIT 的小伙伴 ~"
+echo -e " 🎉 MIKIT • Mi-Toolkit 安装成功！"
+echo -e " 您是第 ${up_count:-1} 位安装 MIKIT 的小伙伴 ~"
 echo -e " 工具目录: $INSTALL_DIR/mikit"
 echo -e " 插件目录: $APPS_DIR/.mikit_data"
 echo -e " 之后可以通过输入 'mikit' 来启动工具箱。"
-echo -e "==========================================${C_RESET}"
+echo -e "=========================================="
 echo ""
 read -r -p "👉 按回车键启动..." dummy
 
