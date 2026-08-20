@@ -162,7 +162,7 @@ main() {
 
     info "程序包解压完成"
 
-    mkdir -p "$INSTALL_DIR/mikit/data" "$INSTALL_DIR/mikit/apps" "$INSTALL_DIR/mikit/apps_data" "$APPS_DIR/.mikit_data/apps" "$APPS_DIR/.mikit_data/apps_data"
+    mkdir -p "$INSTALL_DIR/mikit/data" "$INSTALL_DIR/mikit/temporary" "$INSTALL_DIR/mikit/apps" "$INSTALL_DIR/mikit/apps_data" "$APPS_DIR/.mikit_data/apps" "$APPS_DIR/.mikit_data/apps_data"
 
     sed -i "s|export MIKIT_DIR=.*|export MIKIT_DIR=$INSTALL_DIR/mikit|" "$INSTALL_DIR/mikit/core/init.sh"
     sed -i "s|export MIKIT_DATA_DIR=.*|export MIKIT_DATA_DIR=$APPS_DIR/.mikit_data|" "$INSTALL_DIR/mikit/core/init.sh"
