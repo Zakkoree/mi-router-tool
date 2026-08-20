@@ -55,7 +55,7 @@ while true; do
 
     if command -v mikit >/dev/null 2>&1; then
         info "检测到已安装 mikit 工具，您可以通过输入 'mikit' 来启动工具箱。"
-        read -r -p "按任意按键退出..." dummy
+        read -r -p "👉 按回车键 (Enter) 退出..." dummy
         exit 0
     fi
 
@@ -109,7 +109,7 @@ while true; do
     else
         echo ""
         warn "路径 [$APPS_DIR] 无法写入或无效！"
-        read -r -p "请按回车键重试..." dummy
+        read -r -p "👉 按回车键重试..." dummy
     fi
 done
 
