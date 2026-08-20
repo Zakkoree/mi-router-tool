@@ -118,7 +118,7 @@ while true; do
     fi
 done
 
-echo -e "${C_CYAN}====================================================${C_RESET}"
+echo -e " ${C_CYAN}----------------------------------------------------${C_RESET}"
 RAW_URL="https://github.com/Zakkoree/mi-router-tool/releases/latest/download/mikit.tar.gz"
 TEMP_PKG="/tmp/mikit.tar.gz"
 DOWNLOAD_SUCCESS=0
