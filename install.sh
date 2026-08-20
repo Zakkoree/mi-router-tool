@@ -221,5 +221,9 @@ echo -e "\n${C_GREEN}=========================================="
 echo -e " 🎉 Mikit 工具箱安装成功！"
 echo -e " 工具目录: $INSTALL_DIR/mikit"
 echo -e " 插件目录: $APPS_DIR/.mikit_data"
-echo -e " 您现在可以通过输入 'mikit' 来启动工具箱。"
+echo -e " 之后可以通过输入 'mikit' 来启动工具箱。"
 echo -e "==========================================${C_RESET}"
+echo ""
+read -r -p "👉 按回车键启动..." dummy
+
+exec mikit
