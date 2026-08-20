@@ -17,9 +17,9 @@ C_YELLOW='\033[33m'
 C_BLUE='\033[34m'
 C_RESET='\033[0m'
 
-info() { echo -e "${C_GREEN}[INFO]${C_RESET} $1"; }
-warn() { echo -e "${C_YELLOW}[WARN]${C_RESET} $1"; }
-error() { echo -e "${C_RED}[ERROR]${C_RESET} $1"; exit 1; }
+info() { echo -e "$(date '+%Y-%m-%d %H:%M:%S') ${C_GREEN}[INFO]${C_RESET} $1"; }
+warn() { echo -e "$(date '+%Y-%m-%d %H:%M:%S') ${C_YELLOW}[WARN]${C_RESET} $1"; }
+error() { echo -e "$(date '+%Y-%m-%d %H:%M:%S') ${C_RED}[ERROR]${C_RESET} $1"; exit 1; }
 
 [ "$(id -u)" -ne 0 ] && error "请使用 root 用户运行此脚本！"
 
