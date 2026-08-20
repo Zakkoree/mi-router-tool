@@ -205,6 +205,7 @@ cat <<EOF > "$CUSTOM_FILE"
 
 # 自定义自启脚本
 EOF
+touch "$INSTALL_DIR/mikit/data/mikit_cron.conf"
 
 MIKIT_HOSTS_FILE="$INSTALL_DIR/mikit/data/mikit_hosts.conf"
 cat <<EOF > "$MIKIT_HOSTS_FILE"
