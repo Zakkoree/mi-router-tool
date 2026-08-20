@@ -189,17 +189,25 @@ mkdir -p "$INSTALL_DIR/mikit/data" "$INSTALL_DIR/mikit/apps" "$INSTALL_DIR/mikit
 # 4. 检查 profile 文件是否存在，存在再修改，避免 sed 报错
 sed -i "s|export MIKIT_DATA_DIR=.*|export MIKIT_DATA_DIR=$APPS_DIR/.mikit_data|" "$INSTALL_DIR/mikit/core/profile"
 
-# 5. 初始化数据库配置
+
+
+info "初始化配置完成"
+CUSTOM_FILE="$INSTALL_DIR/mikit/data/custom_script.sh"
+
+chmod -R +x "$INSTALL_DIR/mikit"
+
+up_count=$(curl -fsSL --connect-timeout 3 -m 10 https://api.counterapi.dev/v2/zakkorees-team-5185/mikit/up -H "Authorization: Bearer ut_e8iyP5XCLm1wOuvRXqva24cmaXT6SwEcHWMbrk8P" 2>/dev/null | grep -o '"up_count":[0-9]*' | awk -F':' '{print $2}')
+
+# 5. 初始化数据配置
 CONFIG_FILE="$INSTALL_DIR/mikit/data/mikit_db"
 info "正在初始化配置文件..."
 cat <<EOF > "$CONFIG_FILE"
 config app 'mikit'
   option dnsmasq '1'
   option docker '0'
+  option up_count '${up_count:-1}'
 EOF
 
-info "初始化配置完成"
-CUSTOM_FILE="$INSTALL_DIR/mikit/data/custom_script.sh"
 cat <<EOF > "$CUSTOM_FILE"
 #!/bin/sh
 
@@ -212,15 +220,14 @@ cat <<EOF > "$MIKIT_HOSTS_FILE"
 config dnsmasq
 EOF
 
-chmod -R +x "$INSTALL_DIR/mikit"
-
 "$INSTALL_DIR/mikit/core/init.sh"
 "$INSTALL_DIR/mikit/core/post_install.sh"
 
 [ -f /etc/profile ] && . /etc/profile >/dev/null 2>&1
 
 echo -e "\n${C_GREEN}=========================================="
-echo -e " 🎉 Mikit 工具箱安装成功！"
+echo -e " ${C_PURPLE}🎉 MIKIT 工具箱安装成功！${C_RESET}"
+echo -e " 您是第 ${C_CYAN}${up_count:-1}${C_RESET} 位安装 MIKIT 的小伙伴 ~"
 echo -e " 工具目录: $INSTALL_DIR/mikit"
 echo -e " 插件目录: $APPS_DIR/.mikit_data"
 echo -e " 之后可以通过输入 'mikit' 来启动工具箱。"
