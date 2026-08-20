@@ -64,7 +64,7 @@ main() {
         echo -e "    👉 系统 ROM (/data) 剩余空间: ${C_YELLOW}$ROM_FREE_SPACE${C_RESET}"
         echo -e " ${C_CYAN}----------------------------------------------------${C_RESET}"
 
-        echo -e " 请设置插件（Apps）的安装目录："
+#        echo -e " 请设置插件（Apps）的安装目录："
         case "$USB" in
             /mnt*)
                 echo -e "   • USB版推荐: " /mnt/usb-*
@@ -78,7 +78,7 @@ main() {
                 esac
         echo -e "   • 硬盘版推荐: "/userdisk/data
         echo ""
-        read -r -p " 请输入应用安装目录: " user_input_apps_dir
+        read -r -p " 请设置插件（Apps）的安装目录: " user_input_apps_dir
 
         local APPS_DIR="$user_input_apps_dir"
         case "$APPS_DIR" in
@@ -212,6 +212,8 @@ EOF
     echo ""
     read -r -p "👉 按回车键启动..." dummy
 
-    exec mikit
+    mikit
+
+    exec "${SHELL:-/bin/ash}" -l
 }
 main
