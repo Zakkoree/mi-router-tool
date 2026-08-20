@@ -3,8 +3,10 @@
 # ==========================================
 # Mikit 工具箱一键安装脚本
 # ==========================================
-# sh -c "$(curl -kfsSl --connect-timeout 10  https://fastly.jsdelivr.net/gh/Zakkoree/mi-router-tool@main/install.sh)" && source /etc/profile &> /dev/null
-# curl -sSL --connect-timeout 10 "https://fastly.jsdelivr.net/gh/Zakkoree/mi-router-tool@main/install.sh" | sh /dev/stdin < /dev/tty
+# sh -c "$(curl -kfsSL --connect-timeout 10 https://raw.githubusercontent.com/Zakkoree/mi-router-tool/main/install.sh)" </dev/tty
+# sh -c "$(curl -kfsSL --connect-timeout 10 https://mirror.mikus.ink/https://raw.githubusercontent.com/Zakkoree/mi-router-tool/main/install.sh)" </dev/tty
+# sh -c "$(curl -kfsSl --connect-timeout 10 https://fastly.jsdelivr.net/gh/Zakkoree/mi-router-tool@main/install.sh)" </dev/tty
+
 set -e
 clear
 
@@ -202,6 +204,11 @@ cat <<EOF > "$CUSTOM_FILE"
 #!/bin/sh
 
 # 自定义自启脚本
+EOF
+
+MIKIT_HOSTS_FILE="$INSTALL_DIR/mikit/data/mikit_hosts.conf"
+cat <<EOF > "$MIKIT_HOSTS_FILE"
+config dnsmasq
 EOF
 
 chmod -R +x "$INSTALL_DIR/mikit"
