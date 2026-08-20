@@ -231,7 +231,7 @@ echo -e " 您是第 ${up_count:-1} 位安装的小伙伴 ~"
 echo -e " 工具目录: $INSTALL_DIR/mikit"
 echo -e " 插件目录: $APPS_DIR/.mikit_data"
 echo -e " 之后可以通过输入 'mikit' 来启动工具箱。"
-echo -e "=========================================="
+echo -e "==========================================${C_RESET}"
 echo ""
 read -r -p "👉 按回车键启动..." dummy
 
