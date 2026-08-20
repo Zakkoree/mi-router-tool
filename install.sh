@@ -227,7 +227,7 @@ EOF
 
 echo -e "\n${C_GREEN}=========================================="
 echo -e " 🎉 MIKIT • Mi-Toolkit 安装成功！"
-echo -e " 您是第 ${up_count:-1} 位安装 MIKIT 的小伙伴 ~"
+echo -e " 您是第 ${up_count:-1} 位安装的小伙伴 ~"
 echo -e " 工具目录: $INSTALL_DIR/mikit"
 echo -e " 插件目录: $APPS_DIR/.mikit_data"
 echo -e " 之后可以通过输入 'mikit' 来启动工具箱。"
