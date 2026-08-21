@@ -6,10 +6,10 @@
       "id": "entware",
       "name": "Entware",
       "version": "1.0.0",
-      "author": "Xhofe",
+      "author": "Zakkoree",
       "arch": "all",
-      "desc": "zxzcxzcxzxzczxczxczxczxczxczx",
-      "url": "https://cdn.example.com/pkgs/alist-3.35.0.tar.gz"
+      "desc": "轻量级 Linux 软件包管理器扩展源",
+      "url": "https://github.com/Zakkoree/mi-router-tool"
     },
     {
       "id": "beszel_agent",
