@@ -168,11 +168,11 @@ main() {
     sed -i "s|export MIKIT_DATA_DIR=.*|export MIKIT_DATA_DIR=$APPS_DIR/.mikit_data|" "$INSTALL_DIR/mikit/core/init.sh"
 
     info "正在初始化配置文件..."
-    local CUSTOM_FILE="$INSTALL_DIR/mikit/data/custom_script.sh"
+
 
     chmod -R +x "$INSTALL_DIR/mikit"
 
-    local up_count=$(curl -fsSL --connect-timeout 3 -m 10 https://api.counterapi.dev/v2/zakkorees-team-5185/mikit/up -H "Authorization: Bearer ut_e8iyP5XCLm1wOuvRXqva24cmaXT6SwEcHWMbrk8P" 2>/dev/null | grep -o '"up_count":[0-9]*' | awk -F':' '{print $2}')
+    local up_count=$(curl -fsSLk --connect-timeout 3 -m 5 https://api.counterapi.dev/v2/zakkorees-team-5185/mikit/up -H "Authorization: Bearer ut_e8iyP5XCLm1wOuvRXqva24cmaXT6SwEcHWMbrk8P" 2>/dev/null | grep -o '"up_count":[0-9]*' | awk -F':' '{print $2}')
 
     local CONFIG_FILE="$INSTALL_DIR/mikit/data/mikit_db"
 
@@ -182,7 +182,7 @@ config app 'mikit'
   option docker '0'
   option up_count '${up_count:-1}'
 EOF
-
+    local CUSTOM_FILE="$INSTALL_DIR/mikit/data/custom_script.sh"
     cat <<EOF > "$CUSTOM_FILE"
 #!/bin/sh
 
