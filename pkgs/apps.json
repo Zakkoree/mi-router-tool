@@ -18,16 +18,16 @@
       "author": "Henry",
       "arch": "arm64|armv7|armv5",
       "desc": "轻量级服务器监控 Agent",
-      "url": "https://cdn.example.com/pkgs/beszel-agent-0.7.3.tar.gz"
+      "url": "https://github.com/Zakkoree/mi-router-tool"
     },
     {
       "id": "zerotier",
       "name": "Zerotier",
       "version": "1.0.0",
-      "author": "Xhofe",
+      "author": "Zakkoree",
       "arch": "all",
-      "desc": "zxzcxzcxzxzczxczxczxczxczxczx",
-      "url": "https://cdn.example.com/pkgs/alist-3.35.0.tar.gz"
+      "desc": "开源的虚拟局域网（SD-WAN / P2P VPN）组网工具",
+      "url": "https://github.com/Zakkoree/mi-router-tool"
     }
   ]
 }
