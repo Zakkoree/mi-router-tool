@@ -3,6 +3,15 @@
   "source_url": "https://github.com/Zakkoree/mi-router-tool",
   "apps": [
     {
+      "id": "entware",
+      "name": "Entware",
+      "version": "1.0.0",
+      "author": "Xhofe",
+      "arch": "all",
+      "desc": "zxzcxzcxzxzczxczxczxczxczxczx",
+      "url": "https://cdn.example.com/pkgs/alist-3.35.0.tar.gz"
+    },
+    {
       "id": "beszel_agent",
       "name": "Beszel Agent",
       "version": "0.7.3",
