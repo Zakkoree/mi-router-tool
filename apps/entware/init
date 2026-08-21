@@ -1,0 +1,149 @@
+#!/bin/sh /etc/mk.rc.common
+
+BIN="etc/init.d/rc.unslung"
+
+start_service() {
+    set_entware
+}
+
+stop_service() {
+    echo "基础服务,无需停止"
+}
+
+service_running() {
+    if [ -x "/opt/bin/opkg" ] && [ -f "/opt/$BIN" ]; then
+        echo "status=running pid=0"
+        return 0
+    fi
+    echo "status=stopped pid=0"
+    return 1
+}
+
+set_entware() {
+  if [ -f "/opt/$BIN" ]; then
+    return 0
+  fi
+
+  if [ -f "$APP_DATA_DIR/$BIN" ]; then
+    [ -d "/opt" ] && [ "$(ls -A /opt 2>/dev/null)" ] && cp -a /opt/. "$APP_DATA_DIR/" > /dev/null 2>&1
+    [ -d "/root" ] && [ "$(ls -A /root 2>/dev/null)" ] && cp -a /root/. "$APP_DATA_DIR/root" > /dev/null 2>&1
+    umount /opt
+    mount --bind "$APP_DATA_DIR" /opt
+    if [ $? -ne 0 ]; then
+        logerr "Entware 挂载 /opt 失败！"
+        return 1
+    fi
+    umount /root
+    mount --bind "$APP_DATA_DIR/root" /root
+    if [ $? -ne 0 ]; then
+        logerr "Entware 挂载 /root 失败！"
+        return 1
+    fi
+
+    if ! grep -q "# MIKIT_ENTWARE" /etc/profile 2>/dev/null; then
+        echo 'export PATH=/opt/bin:/opt/sbin:/opt/usr/bin:$PATH  # MIKIT_ENTWARE' >> /etc/profile
+    fi
+    . /etc/profile > /dev/null 2>&1
+    loginfo "Entware 环境初始化并启动成功"
+  else
+    logerr "Entware 数据目录缺失 ($APP_DATA_DIR)"
+    return 1
+  fi
+}
+
+post_install() {
+
+  BIN="$APP_DATA_DIR/etc/init.d/rc.unslung"
+
+  if [ -f "$BIN" ]; then
+      echo "Entware 环境已存在系统中。"
+      return 0
+  fi
+  mkdir -p "$APP_DATA_DIR/root"
+  [ -d "/opt" ] && [ "$(ls -A /opt 2>/dev/null)" ] && cp -a /opt/. "$APP_DATA_DIR/" > /dev/null 2>&1
+  [ -d "/root" ] && [ "$(ls -A /root 2>/dev/null)" ] && cp -a /root/. "$APP_DATA_DIR/root" > /dev/null 2>&1
+  umount /opt
+  mount --bind "$APP_DATA_DIR" /opt
+  if [ $? -ne 0 ]; then
+        logerr "Entware 挂载 /opt 失败！"
+        return 1
+  fi
+  umount /root
+  mount --bind "$APP_DATA_DIR/root" /root
+  if [ $? -ne 0 ]; then
+        logerr "Entware 挂载 /root 失败！"
+        return 1
+  fi
+  ARCH=$(uname -m)
+  KERNEL_MAJOR=$(uname -r | cut -d. -f1)
+#  KERNEL_MINOR=$(uname -r | cut -d. -f2)
+
+  # 检查 MIPS 字节序 (大端/小端)
+  is_little_endian() {
+      echo -n "I" | hexdump -b 2>/dev/null | grep -q "111" || grep -q "little" /proc/cpuinfo 2>/dev/null
+  }
+
+  MATCH=""
+
+  case "$ARCH" in
+    aarch64|arm64) MATCH="aarch64-k3.10" ;;
+    x86_64)        MATCH="x64-k3.2" ;;
+    i386|i686)     MATCH="x86-k2.6" ;;
+    armv5*)        MATCH="armv5sf-k3.2" ;;
+    armv7*)
+      if [ "$KERNEL_MAJOR" -lt 3 ]; then
+        MATCH="armv7sf-k2.6"
+      else
+        MATCH="armv7sf-k3.2"
+      fi
+      ;;
+
+    mips*)
+      if is_little_endian; then
+        MATCH="mipselsf-k3.4"
+      else
+        MATCH="mipssf-k3.4"
+      fi
+      ;;
+    *)
+      echo "❌ CPU 架构 '$ARCH' 不支持" >&2
+      return 1
+      ;;
+  esac
+
+  wget -O - "http://bin.entware.net/$MATCH/installer/generic.sh" | sh
+  if [ $? -ne 0 ]; then
+    echo "❌ Entware 服务安装失败！"
+    return 1
+  else
+    if ! grep -q "# MIKIT_ENTWARE" /etc/profile 2>/dev/null; then
+        echo 'export PATH=/opt/bin:/opt/sbin:/opt/usr/bin:$PATH  # MIKIT_ENTWARE' >> /etc/profile
+    fi
+    . /etc/profile > /dev/null 2>&1
+    mikit_db set "entware.priority" "0"
+    mikit_db set "entware.start" "1"
+    echo " Entware 安装完成!"
+    echo -e "\033[32m✔ /root 用户目录环境已完善！ 对应真实目录 $USB_PATH/.entware/root\033[0m"
+    echo -e "💡 提示："
+    echo -e "  1. 如默认进入 Fish Shell，在 \033[36m/root/.profile\033[0m 中添加以下代码："
+    echo -e "     \033[33mif [ -n \"\$PS1\" ] && [ -z \"\$FISH_VERSION\" ] && [ -x \"\$(command -v fish)\" ]; then\033[0m"
+    echo -e "     \033[33m    exec fish\033[0m"
+    echo -e "     \033[33mfi\033[0m"
+    echo -e "  2. 如用完整版工具替换 BusyBox 精简版工具："
+    echo -e "     \033[36mopkg update && opkg install sed curl grep findutils tar gzip unzip openssh-sftp-server procps-ng-ps procps-ng-top coreutils\033[0m"
+  fi
+
+  # 安装完整版替换BusyBox“削减版”工具
+  # opkg update && opkg install sed curl grep findutils tar gzip unzip openssh-sftp-server procps-ng-ps procps-ng-top coreutils
+
+  # 切换 shell 环境可以在 (ash).profile 添加 (如同bash的 .bashrc)  添加fish示例:
+  # if [ -n "$PS1" ] && [ -z "$FISH_VERSION" ] && [ -x "$(command -v fish)" ]; then
+  #     exec fish
+  # fi
+}
+
+pre_uninstall() {
+    sed -i '/# MIKIT_ENTWARE/d' /etc/profile
+    umount /opt
+    echo "提示：卸载完成后重启路由器，即可恢复默认的 /opt 和 /root 目录。原目录内无重要文件，无需理会。"
+}
