@@ -26,7 +26,16 @@
       "version": "1.0.0",
       "author": "Zakkoree",
       "arch": "all",
-      "desc": "开源的虚拟局域网（SD-WAN / P2P VPN）组网工具",
+      "desc": "虚拟局域网组网工具(依赖 Entware)",
+      "url": "https://github.com/Zakkoree/mi-router-tool"
+    },
+    {
+      "id": "tailscale",
+      "name": "Tailscale",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "虚拟局域网组网工具(依赖 Entware)",
       "url": "https://github.com/Zakkoree/mi-router-tool"
     }
   ]
