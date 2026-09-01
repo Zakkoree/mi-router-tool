@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found - MIKIT • Mi-Toolkit</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-color: #080c14;
+            --bg-radial-1: rgba(16, 185, 129, 0.1);
+            --bg-radial-2: rgba(59, 130, 246, 0.05);
+            --bg-dot: rgba(255, 255, 255, 0.04);
+            
+            --card-bg: rgba(13, 18, 30, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-shadow: 0 32px 64px -16px rgba(0, 0, 0, 0.6);
+            --top-line: rgba(52, 211, 153, 0.5);
+            
+            --badge-bg: rgba(16, 185, 129, 0.08);
+            --badge-border: rgba(16, 185, 129, 0.2);
+            --badge-text: #34d399;
+            
+            --code-gradient: linear-gradient(180deg, #f1f5f9 0%, #64748b 100%);
+            --title-color: #f1f5f9;
+            --text-color: #94a3b8;
+            --brand-color: #475569;
+            --brand-border: rgba(255, 255, 255, 0.06);
+        }
+
+        /* 2. 自动检测系统/浏览器浅色模式 (Light Mode) */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-color: #f8fafc;
+                --bg-radial-1: rgba(16, 185, 129, 0.08);
+                --bg-radial-2: rgba(59, 130, 246, 0.05);
+                --bg-dot: rgba(15, 23, 42, 0.05);
+                
+                --card-bg: rgba(255, 255, 255, 0.85);
+                --card-border: rgba(226, 232, 240, 0.9);
+                --card-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.06);
+                --top-line: #10b981;
+                
+                --badge-bg: #ecfdf5;
+                --badge-border: #a7f3d0;
+                --badge-text: #059669;
+                
+                --code-gradient: linear-gradient(180deg, #1e293b 0%, #64748b 100%);
+                --title-color: #0f172a;
+                --text-color: #64748b;
+                --brand-color: #94a3b8;
+                --brand-border: #f1f5f9;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 50% 15%, var(--bg-radial-1) 0%, transparent 45%),
+                radial-gradient(circle at 85% 85%, var(--bg-radial-2) 0%, transparent 40%),
+                radial-gradient(var(--bg-dot) 1px, transparent 0);
+            background-size: 100% 100%, 100% 100%, 28px 28px;
+            color: var(--title-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            transition: background-color 0.3s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--card-border);
+            border-radius: 28px;
+            padding: 40px 32px 32px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 15%;
+            right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--top-line), transparent);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: var(--badge-text);
+            background: var(--badge-bg);
+            padding: 6px 14px;
+            border-radius: 100px;
+            border: 1px solid var(--badge-border);
+            margin-bottom: 24px;
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--badge-text);
+            border-radius: 50%;
+            animation: pulse 2.5s infinite ease-in-out;
+        }
+
+        .error-code {
+            font-size: clamp(64px, 18vw, 92px);
+            font-weight: 800;
+            line-height: 0.85;
+            letter-spacing: -3px;
+            background: var(--code-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            user-select: none;
+        }
+
+        h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--title-color);
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        p {
+            font-size: 13px;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .footer-brand {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid var(--brand-border);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--brand-color);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            user-select: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.85); }
+        }
+
+        @media (max-width: 360px) {
+            .card { padding: 32px 20px 24px; }
+            h1 { font-size: 15px; }
+            p { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">
+            <span class="badge-dot"></span>
+            PAGE NOT FOUND
+        </div>
+        <div class="error-code">404</div>
+        <h1>页面未找到 / Error 404</h1>
+        <p>抱歉，您访问的页面不存在或已被移除。<br>The requested URL was not found.</p>
+        
+        <div class="footer-brand">
+            MIKIT • Mi-Toolkit
+        </div>
+    </div>
+</body>
+</html>

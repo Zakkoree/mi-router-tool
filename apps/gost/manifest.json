@@ -1,0 +1,10 @@
+{
+  "id": "gost",
+  "name": "Gost",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "功能极其强大的安全隧道与多协议代理服务软件",
+  "icon": "https://gost.run/images/favicon.ico",
+  "url": "https://gost.run"
+}

@@ -1,0 +1,27 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="测试配置:test_config"
+
+refresh() { APP_EXTRA_INFO=$(show_config); }
+
+show_config() {
+    local conf_file="$APP_DATA_DIR/config.json"
+    if [ ! -f "$conf_file" ]; then
+        return 1
+    fi
+    local external_controller="" secret="" mixed_port=""  uiurl=""
+    external_controller=$(jq -r '.experimental?.clash_api?.external_controller // empty' "$conf_file" 2>/dev/null)
+    mixed_port=$(jq -r '.inbounds[]? | select(.type == "mixed") | .listen_port // empty' "$conf_file" 2>/dev/null)
+    api_port="${external_controller##*:}"
+    [ -z "$external_controller" ] && external_controller="未配置"
+    [ -n "$api_port" ] && uiurl="http://$lanip:$api_port/ui"
+    [ -z "$mixed_port" ] && mixed_port="未配置"
+    echo -e " 💡 \e[2m模板基础配置已预置，仅需补全节点与节点组信息\e[0m\n 📄 配置文件位置：${conf_file}\n 🌐 外部控制地址: \e[1;36m$external_controller\e[0m -> $uiurl\n 🔀 混合代理端口: \e[1;32m$mixed_port\e[0m"
+}
+
+test_config() {
+    clear
+    echo " ⏳ 正在校验配置文件正确性..."
+    echo "-------------------------------------------"
+    "$APP_SCRIPT" test_config && echo -e "\n ✅ 测试通过" || echo -e "\n ❌ 测试未通过"
+}

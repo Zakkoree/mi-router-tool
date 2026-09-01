@@ -1,0 +1,70 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="透明代理:mihomo_firewall_menu|\
+测试配置:test_config"
+
+refresh() { APP_EXTRA_INFO=$(show_config); }
+
+show_config() {
+    local conf_file="$APP_DATA_DIR/config.yaml"
+    if [ ! -f "$conf_file" ]; then
+        return 1
+    fi
+    local external_controller="" secret="" mixed_port="" line key val uiurl=""
+
+    while read -r line; do
+        key="${line%%:*}"
+        val="${line#*:}"
+
+        # 清除空格、引号和注释
+        key=$(echo "$key" | tr -d ' -')
+        val=$(echo "$val" | cut -d'#' -f1 | tr -d " '\"\r\t")
+
+        case "$key" in
+            externalcontroller) external_controller="$val" ;;
+            secret)             secret="$val" ;;
+            mixedport)          mixed_port="$val" ;;
+        esac
+    done << EOF
+$(grep -E '^[[:space:]]*(external-controller|secret|mixed-port):' "$conf_file")
+EOF
+    api_port="${external_controller##*:}"
+    [ -z "$external_controller" ] && external_controller="未配置"
+    [ -n "$api_port" ] && uiurl="http://$lanip:$api_port/ui"
+    [ -z "$secret" ] && secret="未设置 (空)"
+    [ -z "$mixed_port" ] && mixed_port="未配置"
+    local proxy_mode mode_str
+    proxy_mode=$(mikit_db get "proxy_mode")
+    mode_str="${C_RED}✖${C_RESET}"
+    [ "$proxy_mode" = "1" ] && mode_str="${C_GREEN}✔${C_RESET}"
+    echo -e " 💡 \e[2m模板基础配置已预置，仅需补全节点与节点组信息\e[0m\n 📄 配置文件位置：${conf_file}\n 🌐 外部控制地址: \e[1;36m$external_controller\e[0m -> $uiurl\n 🔑 外部控制密钥: \e[1;33m$secret\e[0m\n 🔀 混合代理端口: \e[1;32m$mixed_port\e[0m\n 🧱 透明代理状态: $mode_str"
+}
+
+mihomo_firewall_menu() {
+    echo " 1) 开启 tun"
+    echo " 0) 关闭 tun"
+    read -r -p "请选择操作 [0-1]: " choice
+
+    case "$choice" in
+        1)
+            mikit_db set "proxy_mode" '1'
+            [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" start_rules
+            echo -e "\n ✅ 透明代理已开启"
+            ;;
+        0)
+            mikit_db set "proxy_mode" '0'
+            "$APP_SCRIPT" stop_rules
+            echo -e "\n ✅ 透明代理已关闭"
+            ;;
+        *)
+            echo -e "\n ❗ 无效选项"
+            ;;
+    esac
+}
+
+test_config() {
+    clear
+    echo " ⏳ 正在校验配置文件正确性..."
+    echo "-------------------------------------------"
+    "$APP_SCRIPT" test_config
+}

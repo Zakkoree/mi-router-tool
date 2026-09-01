@@ -1,0 +1,99 @@
+#!/bin/sh /etc/mk.rc.common
+# ------------------------------------------------------------------
+# 可用环境变量（由 /etc/mk.rc.common 框架自动解析注入）：
+#   $APP_DIR         -> 应用基础安装路径
+#   $APP_ID          -> 应用唯一标识符（即目录名）
+#   $APP_DATA_DIR    -> 应用独立的持久化数据目录路径
+# 运行与网络变量:
+#   $MIRROR          -> 系统镜像源地址
+#   $wanip           -> WAN 口 IP 地址
+#   $lanip           -> LAN 口 IP 地址
+# ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# 1. procd 标准守护进程启动（推荐绝大多数应用使用）
+# ------------------------------------------------------------------
+start_service() {
+    SCRIPT_PATH="$APP_DATA_DIR/${APP_ID}_daemon.sh"
+
+    # 测试示例脚本  可换成二进制程序
+    cat << DAEMON_EOF > "$SCRIPT_PATH"
+#!/bin/sh
+
+# 基础环境变量与配置
+param="\$1"
+APP_DATA_DIR="${APP_DATA_DIR}"
+mkdir -p "\$APP_DATA_DIR"
+
+# 每 10 秒记录一次时间戳
+while true; do
+    echo "[\$(date '+%Y-%m-%d %H:%M:%S')] \$param Heartbeat - PID: \$\$" >> "\$APP_DATA_DIR/heartbeat.log"
+    sleep 10
+done
+DAEMON_EOF
+
+    chmod +x "$SCRIPT_PATH"
+    procd_open_instance
+
+    # 纯 Shell 循环服务：每 10 秒打卡，并写入数据目录
+    procd_set_param command "$SCRIPT_PATH" "入参"
+
+    procd_set_param env HOME="$APP_DATA_DIR" TMPDIR="/tmp"
+
+    procd_set_param respawn
+    procd_set_param stderr 1
+
+    procd_close_instance
+}
+
+# ------------------------------------------------------------------
+# 2. 自定义服务控制（若应用无需 procd 守护，取消注释以下三个函数以覆盖默认实现）
+# ------------------------------------------------------------------
+#start_service() {
+#    echo "🚀 正在启动服务..."
+#    # 模拟手动拉起后台进程
+#    "$APP_DIR/bin/runner.sh" >/dev/null 2>&1 &
+#    echo $! > "$PID_FILE"
+#}
+
+#stop_service() {
+#    echo "🛑 正在停止服务..."
+#    if [ -f "$PID_FILE" ]; then
+#        kill "$(cat "$PID_FILE")" 2>/dev/null
+#        rm -f "$PID_FILE"
+#    fi
+#}
+
+#service_running() {
+#    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+#        echo "status=running pid=$(cat "$PID_FILE")"
+#        return 0
+#    fi
+#    echo "status=stopped pid=0"
+#    return 1
+#}
+
+# ------------------------------------------------------------------
+# 3. 生命周期扩展钩子（按需取消注释使用）
+# ------------------------------------------------------------------
+
+# 服务成功启动后执行的后置钩子
+#start_later() {
+#    echo "⚡ 服务启动完成，开始配置防火墙或关联组件..."
+#}
+
+# 服务停止后执行的清理动作
+#stop_later() {
+#    echo "🧹 执行停止后的临时文件清理..."
+#    rm -f /tmp/${APP_ID}.tmp
+#}
+
+# 应用安装/部署完成后的初始化钩子
+#post_install() {
+#    echo "🔧 正在执行安装后初始化..."
+#}
+
+# 应用卸载前的自定义清理动作
+#pre_uninstall() {
+#    echo "💥 正在执行卸载前清理..."
+#}

@@ -1,0 +1,211 @@
+#!/bin/sh
+# Docker 容器资源实时监控
+# 使用脚本代替 docker stats 监控
+
+INTERVAL=1
+
+HOST_CPU_CORES=$(nproc 2>/dev/null || grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 1)
+HOST_MEM_BYTES=$(awk '/MemTotal:/ {print $2 * 1024}' /proc/meminfo 2>/dev/null || echo 0)
+
+format_bytes() {
+    b=$1
+    if [ -z "$b" ] || [ "$b" -eq 0 ] 2>/dev/null; then echo "0B"; return; fi
+    awk -v b="$b" 'BEGIN {
+        if (b >= 1073741824) printf "%.2fGB", b/1073741824
+        else if (b >= 1048576) printf "%.2fMB", b/1048576
+        else if (b >= 1024) printf "%.2fKB", b/1024
+        else printf "%dB", b
+    }'
+}
+
+format_speed() {
+    b=$1
+    if [ -z "$b" ] || [ "$b" -eq 0 ] 2>/dev/null; then echo "0B/s"; return; fi
+    awk -v b="$b" 'BEGIN {
+        if (b >= 1073741824) printf "%.2fGB/s", b/1073741824
+        else if (b >= 1048576) printf "%.2fMB/s", b/1048576
+        else if (b >= 1024) printf "%.2fKB/s", b/1024
+        else printf "%dB/s", b
+    }'
+}
+
+HOST_NET_NS=$(readlink /proc/1/ns/net 2>/dev/null)
+PREV_STATS=""
+PREV_TIME=""
+
+cleanup() {
+    printf "\033[?25h\033[0m\n"
+    exit 0
+}
+trap cleanup INT TERM EXIT
+
+clear
+printf "\033[?25l"
+
+while true; do
+    CONTAINER_DATA=$(docker ps --format '{{.ID}} {{.Names}}' 2>/dev/null)
+    if [ -z "$CONTAINER_DATA" ]; then
+        printf "\033[H\033[J未找到正在运行的容器，等待中...\n"
+        sleep "$INTERVAL"
+        continue
+    fi
+
+    NOW_TIME=$(date +%s.%N 2>/dev/null || date +%s)
+    sys_ticks=$(awk '/^cpu / {print $2+$3+$4+$5+$6+$7+$8}' /proc/stat 2>/dev/null)
+    [ -z "$sys_ticks" ] && sys_ticks=0
+
+    ELAPSED=0
+    if [ -n "$PREV_TIME" ]; then
+        ELAPSED=$(awk -v t1="$PREV_TIME" -v t2="$NOW_TIME" 'BEGIN {e=t2-t1; print (e>0?e:1)}')
+    fi
+
+    host_mem_used_fmt=$(awk '/MemTotal:/ {t=$2} /MemAvailable:/ {a=$2} END {
+        u = t - a;
+        if (u >= 1048576) u_str = sprintf("%.2fGB", u/1048576);
+        else u_str = sprintf("%.2fMB", u/1024);
+        
+        if (t >= 1048576) t_str = sprintf("%.2fGB", t/1048576);
+        else t_str = sprintf("%.2fMB", t/1024);
+        
+        printf "%s / %s", u_str, t_str
+    }' /proc/meminfo 2>/dev/null)
+
+    BUFFER=""
+    BUFFER="${BUFFER}=== Docker 容器资源实时监控 (刷新: ${INTERVAL}s | 核心数: ${HOST_CPU_CORES} Core | 宿主机内存: ${host_mem_used_fmt}) ===\n\n"
+    BUFFER="${BUFFER}$(printf "%-13s %-15s %-7s %-22s %-24s %-20s %-26s %-26s\n" "CONTAINER ID" "NAME" "PID" "CPU USAGE / LIMIT" "MEM USAGE / LIMIT" "BLOCK I/O (R|W)" "NET TOTAL (IN | OUT)" "REALTIME SPEED (IN | OUT)")\n"
+    BUFFER="${BUFFER}$(printf "%-13s %-15s %-7s %-22s %-24s %-20s %-26s %-26s\n" "------------" "---------------" "-------" "----------------------" "------------------------" "-------------------" "--------------------------" "--------------------------")\n"
+
+    ID_LIST=$(echo "$CONTAINER_DATA" | awk '{print $1}')
+    INSPECT_JSON=$(docker inspect --format '{{.Id}} {{.State.Pid}} {{.HostConfig.NanoCpus}} {{.HostConfig.CpuQuota}} {{.HostConfig.CpuPeriod}}' $ID_LIST 2>/dev/null)
+
+    NEW_STATS=""
+    ROWS=""
+
+    while read -r id name; do
+        [ -z "$id" ] && continue
+        short_id=${id:0:12}
+
+        inspect_line=$(echo "$INSPECT_JSON" | grep "^$id")
+        pid=$(echo "$inspect_line" | awk '{print $2}')
+        nano_cpus=$(echo "$inspect_line" | awk '{print $3}')
+        cpu_quota=$(echo "$inspect_line" | awk '{print $4}')
+        cpu_period=$(echo "$inspect_line" | awk '{print $5}')
+        [ -z "$pid" ] && pid="N/A"
+
+        # CPU Limit 计算
+        cpu_limit_fmt=$(awk -v c="$HOST_CPU_CORES" 'BEGIN {printf "%.2f Core", c}')
+        if [ -n "$nano_cpus" ] && [ "$nano_cpus" -gt 0 ] 2>/dev/null; then
+            cpu_limit_fmt=$(awk -v n="$nano_cpus" 'BEGIN {printf "%.2f Core", n/1000000000}')
+        elif [ -n "$cpu_quota" ] && [ "$cpu_quota" -gt 0 ] 2>/dev/null; then
+            [ -z "$cpu_period" ] || [ "$cpu_period" -le 0 ] && cpu_period=100000
+            cpu_limit_fmt=$(awk -v q="$cpu_quota" -v p="$cpu_period" 'BEGIN {printf "%.2f Core", q/p}')
+        fi
+
+        # CPU 实时百分比
+        proc_ticks=0
+        if [ "$pid" != "N/A" ] && [ "$pid" -gt 0 ] 2>/dev/null && [ -f "/proc/$pid/stat" ]; then
+            proc_ticks=$(awk '{print $14+$15+$16+$17}' "/proc/$pid/stat" 2>/dev/null)
+            [ -z "$proc_ticks" ] && proc_ticks=0
+        fi
+
+        cpu_usage_fmt="0.00%"
+        if [ "$ELAPSED" != "0" ] && [ -n "$PREV_STATS" ]; then
+            prev_item=$(echo "$PREV_STATS" | awk -v search="$id" '$1 == search {print $0}')
+            if [ -n "$prev_item" ]; then
+                prev_proc_ticks=$(echo "$prev_item" | awk '{print $4}')
+                prev_sys_ticks=$(echo "$prev_item" | awk '{print $5}')
+                if [ -n "$prev_proc_ticks" ] && [ -n "$prev_sys_ticks" ] && [ "$sys_ticks" -gt "$prev_sys_ticks" ] 2>/dev/null; then
+                    raw_cpu_val=$(awk -v p1="$prev_proc_ticks" -v p2="$proc_ticks" -v s1="$prev_sys_ticks" -v s2="$sys_ticks" 'BEGIN {
+                        diff_p = p2 - p1; diff_s = s2 - s1;
+                        print (diff_s > 0 && diff_p >= 0) ? (diff_p / diff_s) * 100 : 0
+                    }')
+                    cpu_usage_fmt=$(awk -v v="$raw_cpu_val" 'BEGIN {printf "%.2f%%", v}')
+                fi
+            fi
+        fi
+        cpu_str="${cpu_usage_fmt} / ${cpu_limit_fmt}"
+
+        mem_str="N/A"
+        cg_mem=$(ls -d /sys/fs/cgroup/memory/docker/${id}* /sys/fs/cgroup/docker/${id}* /sys/fs/cgroup/memory/system.slice/docker-${id}* 2>/dev/null | head -n 1)
+        if [ -n "$cg_mem" ]; then
+            if [ -f "$cg_mem/memory.usage_in_bytes" ]; then
+                mem_bytes=$(cat "$cg_mem/memory.usage_in_bytes" 2>/dev/null || echo 0)
+                mem_limit=$(cat "$cg_mem/memory.limit_in_bytes" 2>/dev/null || echo 0)
+            elif [ -f "$cg_mem/memory.current" ]; then
+                mem_bytes=$(cat "$cg_mem/memory.current" 2>/dev/null || echo 0)
+                mem_limit=$(cat "$cg_mem/memory.max" 2>/dev/null || echo 0)
+            fi
+            
+            mem_usage_fmt=$(format_bytes "$mem_bytes")
+            if [ -z "$mem_limit" ] || [ "$mem_limit" = "max" ] || [ "$mem_limit" -gt 900000000000000000 ] 2>/dev/null; then
+                mem_limit_fmt=$(format_bytes "$HOST_MEM_BYTES")
+            else
+                mem_limit_fmt=$(format_bytes "$mem_limit")
+            fi
+            mem_str="${mem_usage_fmt} / ${mem_limit_fmt}"
+        fi
+
+        block_io="0B | 0B"
+        if [ "$pid" != "N/A" ] && [ "$pid" -gt 0 ] 2>/dev/null && [ -f "/proc/$pid/io" ]; then
+            r_bytes=$(awk '/read_bytes:/ {print $2}' "/proc/$pid/io" 2>/dev/null || echo 0)
+            w_bytes=$(awk '/write_bytes:/ {print $2}' "/proc/$pid/io" 2>/dev/null || echo 0)
+            block_io="$(format_bytes "$r_bytes") | $(format_bytes "$w_bytes")"
+        fi
+
+        net_total="0B | 0B"
+        net_speed="0B/s | 0B/s"
+        rx2=0; tx2=0; is_host=0
+
+        if [ "$pid" != "N/A" ] && [ "$pid" -gt 0 ] 2>/dev/null && [ -f "/proc/$pid/net/dev" ]; then
+            container_net_ns=$(readlink "/proc/$pid/ns/net" 2>/dev/null)
+            
+            if [ -n "$HOST_NET_NS" ] && [ "$container_net_ns" = "$HOST_NET_NS" ]; then
+                is_host=1
+                net_total="[Host Mode]"
+                net_speed="[Host Mode]"
+            else
+                stats=$(awk 'NR>2 && $1 !~ /lo:/ {rx+=$2; tx+=$10} END {print rx" "tx}' "/proc/$pid/net/dev" 2>/dev/null)
+                rx2=$(echo "$stats" | awk '{print $1}')
+                tx2=$(echo "$stats" | awk '{print $2}')
+                [ -z "$rx2" ] && rx2=0; [ -z "$tx2" ] && tx2=0
+
+                net_total="$(format_bytes "$rx2") | $(format_bytes "$tx2")"
+
+                if [ "$ELAPSED" != "0" ] && [ -n "$PREV_STATS" ]; then
+                    prev_item=$(echo "$PREV_STATS" | awk -v search="$id" '$1 == search {print $0}')
+                    if [ -n "$prev_item" ]; then
+                        rx1=$(echo "$prev_item" | awk '{print $2}')
+                        tx1=$(echo "$prev_item" | awk '{print $3}')
+                        if [ "$rx1" != "HOST" ] && [ -n "$rx1" ] 2>/dev/null; then
+                            rx_speed=$(awk -v r1="$rx1" -v r2="$rx2" -v e="$ELAPSED" 'BEGIN {printf "%.0f", (r2 - r1) / e}')
+                            tx_speed=$(awk -v t1="$tx1" -v t2="$tx2" -v e="$ELAPSED" 'BEGIN {printf "%.0f", (t2 - t1) / e}')
+                            net_speed="$(format_speed "$rx_speed") | $(format_speed "$tx_speed")"
+                        fi
+                    fi
+                fi
+            fi
+        fi
+
+        if [ "$is_host" -eq 1 ]; then
+            NEW_STATS="${NEW_STATS}${id} HOST HOST ${proc_ticks} ${sys_ticks}
+"
+        else
+            NEW_STATS="${NEW_STATS}${id} ${rx2} ${tx2} ${proc_ticks} ${sys_ticks}
+"
+        fi
+
+        line_str=$(printf "%-13s %-15s %-7s %-22s %-24s %-20s %-26s %-26s" "$short_id" "$name" "$pid" "$cpu_str" "$mem_str" "$block_io" "$net_total" "$net_speed")
+        ROWS="${ROWS}${line_str}\n"
+
+    done <<EOF
+$CONTAINER_DATA
+EOF
+
+    PREV_STATS="$NEW_STATS"
+    PREV_TIME="$NOW_TIME"
+
+    # 清屏绘制
+    printf "\033[H%b%b\033[J" "$BUFFER" "$ROWS"
+    
+    sleep "$INTERVAL"
+done

@@ -1,0 +1,34 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="设置模式:set_mode"
+refresh() { APP_EXTRA_INFO=$(get_config); }
+
+get_config() {
+    local isserver=$(mikit_db get "isserver")
+    local type="client"
+    if [ "$isserver" = "1" ]; then
+        type="server"
+    fi
+    echo " 🎯 模式：$type \n 📝 配置: $APP_DATA_DIR/$type.toml"
+}
+
+set_mode() {
+    read -p "请选择模式 [1.client 2.server] : " new_mode
+    case $new_mode in
+    1)
+      mikit_db set "isserver" "0"
+      [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" restart
+      echo -e "\n ✅ 设置成功！"
+      ;;
+    2)
+      mikit_db set "isserver" "1"
+      [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" restart
+      echo -e "\n ✅ 设置成功！"
+      ;;
+    *)
+      echo -e "\n ❗ 无效选项"
+      ;;
+    esac
+
+}
+

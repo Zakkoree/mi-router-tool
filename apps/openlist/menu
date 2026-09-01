@@ -1,0 +1,24 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="设置新密码:set_password"
+
+PROGRAM_CLI="$APP_DIR/bin/openlist --data $APP_DATA_DIR"
+
+refresh() { [ "$APP_STATUS" = "1" ] && APP_EXTRA_INFO=$(show_conf) || APP_EXTRA_INFO=""; }
+show_conf() {
+    local current_port=$(grep -o '"http_port"[[:space:]]*:[[:space:]]*[0-9]*' "$APP_DATA_DIR/config.json" 2>/dev/null | grep -o '[0-9]*')
+    echo " 端口:${current_port:-5244}"
+}
+
+set_password() {
+    read -p "请输入新密码: " new_pwd
+    output="$($PROGRAM_CLI admin set "$new_pwd" 2>/dev/null)"
+
+    if output="$($PROGRAM_CLI admin set "$new_pwd" 2>/dev/null)"; then
+        current_username=$(echo "$output" | grep '^username:' | awk '{print $2}')
+        current_password=$(echo "$output" | grep '^password:' | awk '{print $2}')
+        echo -e "\n ✅ 设置成功！用户名: $current_username，密码: $current_password"
+    else
+        echo "\n ❌ 设置失败！"
+    fi
+}

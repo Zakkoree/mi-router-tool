@@ -1,0 +1,10 @@
+{
+  "id": "aria2",
+  "name": "Aria2",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "轻量级、多协议、多源的高性能下载工具(依赖 Entware)",
+  "icon": "https://aria2.github.io/favicon.png",
+  "url": "https://github.com/aria2/aria2"
+}

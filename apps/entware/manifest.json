@@ -1,0 +1,10 @@
+{
+  "id": "entware",
+  "name": "Entware",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "轻量级 Linux 软件包管理器扩展源",
+  "icon": "https://entware.net/favicon.ico",
+  "url": "https://entware.net"
+}

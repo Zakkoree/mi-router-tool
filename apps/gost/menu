@@ -1,0 +1,6 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS=""
+
+APP_EXTRA_INFO=" 配置文件: $APP_DATA_DIR/config.json";
+

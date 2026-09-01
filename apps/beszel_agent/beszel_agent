@@ -1,0 +1,44 @@
+#!/bin/sh /etc/mk.rc.common
+
+EXTRA_COMMANDS="get_config status"
+EXTRA_HELP="$(printf '\tget_config\t获取配置参数到环境')"
+
+PROG="$APP_DIR/bin/beszel-agent"
+
+start_service() {
+    BESZEL_PORT=$(mikit_db get "port" 2>/dev/null)
+    BESZEL_KEY=$(mikit_db get "key" 2>/dev/null)
+    BESZEL_TOKEN=$(mikit_db get "token" 2>/dev/null)
+    BESZEL_HUB_URL=$(mikit_db get "hub_url" 2>/dev/null)
+    procd_open_instance
+    procd_set_param command $PROG
+    procd_set_param env EXTRA_FILESYSTEMS="sda1" FILESYSTEM="/userdisk" PORT="$BESZEL_PORT" KEY="$BESZEL_KEY" TOKEN="$BESZEL_TOKEN" HUB_URL="$BESZEL_HUB_URL" DATA_DIR="$APP_DATA_DIR"
+    procd_set_param respawn
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+post_install() {
+    local tmp_download="$MIKIT_TMP/beszel-agent.tar.gz"
+    local arch="$SYSTEM_ARCH"
+
+    case $SYSTEM_ARCH in
+    armv*) arch="armv5" ;;
+    mips*) [ "$HARDWARE_COMPLETE" = "0" ] && arch="$arch-softfloat" ;;
+
+    esac
+    local url="${MIRROR}https://github.com/henrygd/beszel/releases/download/v0.18.8/beszel-agent_linux_${arch}.tar.gz"
+    if ! curl -fSL --progress-bar --connect-timeout 5 "$url" -o "$tmp_download" || [ ! -s "$tmp_download" ]; then
+        echo -e "\n ❌ beszel-agent 下载失败，请重新尝试卸载重装！"
+        rm -f "$tmp_download" 2>/dev/null
+        return 1
+    fi
+    mkdir -p "$APP_DIR/bin"
+    tar -zxf "$tmp_download" -C "$APP_DIR/bin/" 2>/dev/null
+    chmod +x "$APP_DIR/bin/beszel-agent"
+}
+
+update() {
+    $PROG update
+}
+

@@ -1,0 +1,65 @@
+#!/bin/sh /etc/mk.rc.common
+
+EXTRA_COMMANDS="refresh_minidlna_conf"
+EXTRA_HELP="$(printf '\trefresh_minidlna_conf\t刷新配置')"
+
+PROG="/opt/sbin/minidlnad"
+
+start_service() {
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        return 1
+    fi
+    if [ ! -x "$PROG" ]; then
+        logerr "未找到 $APP_NAME 可执行程序！"
+        return 1
+    fi
+
+    procd_open_instance
+    procd_set_param command $PROG -d -f $APP_DATA_DIR/config.ini
+    procd_set_param respawn
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+post_install(){
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        logerr "需要安装并运行 Entware 服务再进行重装应用！"
+        return 1
+    fi
+    mkdir -p $APP_DATA_DIR/log $APP_DATA_DIR/db $APP_DATA_DIR/video $APP_DATA_DIR/music $APP_DATA_DIR/picture
+    chmod 777 $APP_DATA_DIR/video $APP_DATA_DIR/music $APP_DATA_DIR/picture
+    local port=$(mikit_db get "port" 2>/dev/null)
+
+    local v_path=$(mikit_db get "minidlna_v_dir" 2>/dev/null)
+    local a_path=$(mikit_db get "minidlna_a_dir" 2>/dev/null)
+    local p_path=$(mikit_db get "minidlna_p_dir" 2>/dev/null)
+    [ -z "$port" ] && mikit_db set "port" "8200"
+    [ -z "$v_path" ] && mikit_db set "minidlna_v_dir" "$APP_DATA_DIR/video"
+    [ -z "$a_path" ] && mikit_db set "minidlna_a_dir" "$APP_DATA_DIR/music"
+    [ -z "$p_path" ] && mikit_db set "minidlna_p_dir" "$APP_DATA_DIR/picture"
+
+    refresh_minidlna_conf
+    opkg update && opkg install minidlna
+}
+
+refresh_minidlna_conf() {
+    local port=$(mikit_db get "port" 2>/dev/null)
+    cat <<EOF > "$APP_DATA_DIR/config.ini"
+friendly_name=MiKit Media Server
+db_dir=$APP_DATA_DIR/db
+log_dir=$APP_DATA_DIR/log
+port=$port
+network_interface=br-lan
+inotify=yes
+album_art_names=Cover.jpg/cover.jpg/COVER.JPG/AlbumArt.jpg/albumart.jpg/AlbumArtSmall.jpg/album.jpg/ALBUM.JPG/folder.jpg/FOLDER.JPG/poster.jpg/POSTER.JPG/thumb.jpg/THUMB.JPG/封面.jpg/海报.jpg/cover.png/folder.png/poster.png
+EOF
+    local v_path=$(mikit_db get "minidlna_v_dir" 2>/dev/null)
+    local a_path=$(mikit_db get "minidlna_a_dir" 2>/dev/null)
+    local p_path=$(mikit_db get "minidlna_p_dir" 2>/dev/null)
+
+    [ -n "$v_path" ] && echo "media_dir=V,$v_path" >> "$APP_DATA_DIR/config.ini"
+    [ -n "$a_path" ] && echo "media_dir=A,$a_path" >> "$APP_DATA_DIR/config.ini"
+    [ -n "$p_path" ] && echo "media_dir=P,$p_path" >> "$APP_DATA_DIR/config.ini"
+}

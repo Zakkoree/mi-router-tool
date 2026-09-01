@@ -1,0 +1,73 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="设置RPC密码:set_secret|设置下载目录:set_download_dir"
+CONFIG_FILE="$APP_DATA_DIR/aria2.conf"
+refresh() { APP_EXTRA_INFO=$(get_config); }
+
+get_config() {
+    local current_port=$(grep -E "^rpc-listen-port=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local current_secret=$(grep -E "^rpc-secret=" "$CONFIG_FILE" | cut -d'=' -f2)
+    local current_dir=$(grep -E "^dir=" "$CONFIG_FILE" | cut -d'=' -f2)
+    echo " RPC 端口/密码：${current_port:-6800} | ${current_secret:-空密码}\n 当前下载路径：${current_dir:-未设置}"
+}
+
+set_secret() {
+    read -p "请输入新的 RPC 密码 (直接回车代表清空密码): " new_secret
+
+    if grep -q "^rpc-secret=" "$CONFIG_FILE"; then
+        sed -i "s#^rpc-secret=.*#rpc-secret=$new_secret#" "$CONFIG_FILE"
+    else
+        echo "rpc-secret=$new_secret" >> "$CONFIG_FILE"
+    fi
+
+    if [ "$APP_STATUS" = "1" ] && [ -f "$APP_SCRIPT" ]; then
+        "$APP_SCRIPT" restart
+    fi
+    echo -e "\n ✅ RPC 密码设置成功"
+}
+
+set_secret() {
+    read -p "请输入新的 RPC 密码 (直接回车代表清空密码): " new_secret
+
+    if [ -z "$new_secret" ]; then
+        sed -i '/^rpc-secret=/d' "$CONFIG_FILE"
+        echo -e "\n ✅ 已清空 RPC 密码\n"
+    else
+        if grep -q "^rpc-secret=" "$CONFIG_FILE"; then
+            sed -i "s#^rpc-secret=.*#rpc-secret=$new_secret#" "$CONFIG_FILE"
+        else
+            echo "rpc-secret=$new_secret" >> "$CONFIG_FILE"
+        fi
+        echo -e "\n ✅ RPC 密码设置成功\n"
+    fi
+
+    if [ "$APP_STATUS" = "1" ] && [ -f "$APP_SCRIPT" ]; then
+        "$APP_SCRIPT" restart
+    fi
+}
+
+set_download_dir() {
+    read -p "请输入新下载目录: " new_dir
+    if [ -z "$new_dir" ]; then
+        echo -e "\n ❗ 未输入新目录，保持原样。"
+        return
+    fi
+
+    if [ ! -d "$new_dir" ]; then
+        echo -e "\n ❌ 文件夹不存在！"
+        return
+    fi
+
+    if grep -q "^dir=" "$CONFIG_FILE"; then
+        sed -i "s#^dir=.*#dir=$new_dir#" "$CONFIG_FILE"
+    else
+        echo "dir=$new_dir" >> "$CONFIG_FILE"
+    fi
+
+    # 如果服务正在运行，则重启服务
+    if [ "$APP_STATUS" = "1" ] && [ -f "$APP_SCRIPT" ]; then
+        "$APP_SCRIPT" restart
+    fi
+    echo -e "\n ✅ 下载目录设置成功"
+}
+

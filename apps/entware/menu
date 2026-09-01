@@ -1,0 +1,16 @@
+#!/bin/sh /etc/mk.menu.common
+#APP_DIR APP_ID APP_NAME
+# APP_EXTRA_INFO
+# 以下三个内置实现,可以覆盖
+#start() { }
+#stop() { }
+#status() { }
+
+# 定义扩展菜单选项
+OPTIONS=""
+
+
+
+set_auto_start_priority() {
+    echo "基础服务，优先启动"
+}

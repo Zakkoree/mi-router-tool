@@ -1,0 +1,74 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="修改配置:custom_config"
+
+# 读取数据库配置到全局变量
+get_config() {
+    BESZEL_PORT=$(mikit_db get "port" 2>/dev/null)
+    BESZEL_KEY=$(mikit_db get "key" 2>/dev/null)
+    BESZEL_TOKEN=$(mikit_db get "token" 2>/dev/null)
+    BESZEL_HUB_URL=$(mikit_db get "hub_url" 2>/dev/null)
+
+    # 只要有任意一个字段缺失，即返回 1 (未配置完成)
+    if [ -z "$BESZEL_PORT" ] || [ -z "$BESZEL_KEY" ] || [ -z "$BESZEL_TOKEN" ] || [ -z "$BESZEL_HUB_URL" ]; then
+        return 1
+    fi
+    return 0
+}
+
+# 格式化打印当前完整配置
+show_current_config() {
+    get_config
+    local unset_str="${C_RED}未设置${C_RESET}"
+
+    cont_line
+    print_center " 📋 【当前 Beszel Agent 配置概览】" 6
+    echo -e " 🔹 Port    : ${BESZEL_PORT:-$unset_str}"
+    echo -e " 🔹 Key     : ${BESZEL_KEY:-$unset_str}"
+    echo -e " 🔹 Token   : ${BESZEL_TOKEN:-$unset_str}"
+    echo -e " 🔹 Hub URL : ${BESZEL_HUB_URL:-$unset_str}"
+    cont_line
+}
+
+# 启动前校验逻辑
+start_verify() {
+    if ! get_config; then
+        echo -e "\n ❗ 启动失败: 参数 PORT/KEY/TOKEN/HUB_URL 存在缺失！"
+        show_current_config
+        return 1
+    fi
+    return 0
+}
+
+# 修改配置
+custom_config() {
+    echo -e "\n 🔧  【修改 Beszel Agent 配置】"
+    show_current_config
+
+    echo -e " 💡 提示: 直接回车保留当前默认/已有值\n"
+
+    # 1. Port
+    read -r -p "请输入 Port [当前: ${BESZEL_PORT:-无}]: " new_port
+    new_port=${new_port:-$BESZEL_PORT}
+
+    # 2. Key
+    read -r -p "请输入 Key [当前: ${BESZEL_KEY:-无}]: " new_key
+    new_key=${new_key:-$BESZEL_KEY}
+
+    # 3. Token
+    read -r -p "请输入 Token [当前: ${BESZEL_TOKEN:-无}]: " new_token
+    new_token=${new_token:-$BESZEL_TOKEN}
+
+    # 4. Hub URL
+    read -r -p "请输入 Hub URL [当前: ${BESZEL_HUB_URL:-无}]: " new_hub_url
+    new_hub_url=${new_hub_url:-$BESZEL_HUB_URL}
+
+    # 写入数据库
+    mikit_db set "port" "$new_port"
+    mikit_db set "key" "$new_key"
+    mikit_db set "token" "$new_token"
+    mikit_db set "hub_url" "$new_hub_url"
+
+    echo -e "\n ✅ 配置已更新，手动重启服务以生效！"
+    show_current_config
+}

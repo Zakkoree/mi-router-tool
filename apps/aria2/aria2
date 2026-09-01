@@ -1,0 +1,139 @@
+#!/bin/sh /etc/mk.rc.common
+
+EXTRA_COMMANDS=""
+EXTRA_HELP=""
+
+PROG="/opt/bin/aria2c"
+
+start_service() {
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        return 1
+    fi
+    if [ ! -x "$PROG" ]; then
+        logerr "未找到 $APP_NAME 可执行程序！"
+        return 1
+    fi
+
+    procd_open_instance
+    procd_set_param command $PROG --conf-path="$APP_DATA_DIR/aria2.conf"
+    procd_set_param respawn
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+post_install(){
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        logerr "需要安装并运行 Entware 服务再进行重装应用！"
+        return 1
+    fi
+    local tmp_download="$MIKIT_TMP/aria2.tar.gz"
+    local arch=""
+
+    case $SYSTEM_ARCH in
+    armv*) [ "$HARDWARE_COMPLETE" = "0" ] && arch="arm-linux-musleabi" ;;
+    esac
+    if [ -n "$arch" ]; then
+        local url="${MIRROR}https://github.com/abcfy2/aria2-static-build/releases/download/continuous/aria2-${arch}_static.zip"
+        if ! curl -fSL --progress-bar --connect-timeout 5 "$url" -o "$tmp_download" || [ ! -s "$tmp_download" ]; then
+            echo -e "\n ❌ 下载失败，请重新尝试卸载重装！"
+            rm -f "$tmp_download" 2>/dev/null
+            return 1
+        fi
+        unzip -q -o "$tmp_download" -d "/opt/bin/" 2>/dev/null
+        chmod +x "$PROG"
+    else
+        opkg update && opkg install aria2
+    fi
+
+    if [ ! -f "$APP_DATA_DIR/aria2.conf" ]; then
+        mkdir -p $APP_DATA_DIR/download
+        init_conf
+    fi
+}
+
+
+init_conf() {
+    touch $APP_DATA_DIR/aria2.session
+    cat > "$APP_DATA_DIR/aria2.conf" << EOF
+# ==============================================================================
+# Aria2 配置模板
+# ==============================================================================
+
+##================ 文件保存与存储优化 =================##
+# 下载保存目录
+dir=$APP_DATA_DIR/download
+# 实时地写入硬盘，不占用内存
+disk-cache=0
+file-allocation=none
+no-file-allocation-limit=64M
+# 断点续传与文件时间戳同步
+continue=true
+always-resume=false
+max-resume-failure-tries=0
+remote-time=true
+##================ 进度与会话安全设置 =================##
+input-file=$APP_DATA_DIR/aria2.session
+save-session=$APP_DATA_DIR/aria2.session
+# 会话保存间隔（秒）：折中设为 10 秒。
+save-session-interval=10
+auto-save-interval=30
+##================ 下载连接与并发优化 =================##
+max-file-not-found=4
+max-tries=16
+retry-wait=8
+connect-timeout=16
+timeout=16
+# 最大同时下载任务数：保持 5 个，避免低内存下多任务并发撑爆内存
+max-concurrent-downloads=5
+# 单任务最大连接线程数与分片
+split=16
+min-split-size=4M
+allow-piece-length-change=true
+http-accept-gzip=true
+reuse-uri=false
+no-netrc=true
+content-disposition-default-utf8=true
+##================ BT / PT 高阶性能优化 =================##
+enable-dht=true
+enable-dht6=false
+dht-file-path=$APP_DATA_DIR/dht.dat
+dht-file-path6=$APP_DATA_DIR/dht6.dat
+bt-enable-lpd=true
+enable-peer-exchange=true
+# 最大 Peer 连接数：控制在 64，防止因路由器/设备连接数表满导致断网或死机
+bt-max-peers=64
+bt-request-peer-speed-limit=4M
+# 做种与分享率（达到 1.0 或 60 分钟自动停止，节省空间）
+seed-ratio=1.0
+seed-time=60
+bt-tracker-connect-timeout=16
+bt-tracker-timeout=16
+bt-prioritize-piece=head=16M,tail=16M
+bt-save-metadata=true
+bt-load-saved-metadata=true
+bt-remove-unselected-file=true
+bt-force-encryption=true
+bt-detach-seed-only=true
+##================ 客户端伪装 =================##
+peer-agent=qBittorrent/4.6.4
+peer-id-prefix=-qB4640-
+##================ RPC 远程控制与安全 =================##
+enable-rpc=true
+rpc-allow-origin-all=true
+rpc-listen-all=true
+rpc-listen-port=6800
+rpc-max-request-size=10M
+# 日志清理：关闭繁杂的控制台输出，保护后台干净
+summary-interval=0
+show-console-readout=false
+# 下载完成后执行的脚本路径 (修改文件权限)
+on-download-complete=$APP_DIR/set_permission.sh
+EOF
+}
+
+pre_uninstall() {
+    opkg remove aria2 2>/dev/null
+    rm "$PROG" 2>/dev/null
+}

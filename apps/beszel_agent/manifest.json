@@ -1,0 +1,10 @@
+{
+  "id": "beszel_agent",
+  "name": "Beszel Agent",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "轻量级服务器监控 Agent",
+  "icon": "https://www.beszel.dev/icon.svg",
+  "url": "https://www.beszel.dev"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "mihomo",
+  "name": "Mihomo",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "继承并超越原版 Clash 的、生态成熟的经典代理内核",
+  "icon": "https://avatars.githubusercontent.com/u/84378451?s=60&v=4",
+  "url": "https://github.com/MetaCubeX/mihomo"
+}

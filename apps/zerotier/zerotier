@@ -1,0 +1,88 @@
+#!/bin/sh /etc/mk.rc.common
+
+EXTRA_COMMANDS="setup_zone remove_zone repair_arp"
+EXTRA_HELP="$(printf '\tsetup_zone\t开启防火墙
+\tremove_zone\t重置/删除防火墙规则')"
+
+PROG="/opt/bin/zerotier-one"
+
+start_service() {
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        return 1
+    fi
+    if [ ! -x "$PROG" ]; then
+        logerr "未找到 zerotier-one 可执行程序！"
+        return 1
+    fi
+
+    procd_open_instance
+    procd_set_param command $PROG "$APP_DATA_DIR"
+    procd_set_param respawn
+    procd_set_param stderr 1
+    procd_close_instance
+    repair_arp
+}
+
+repair_arp() {
+    (
+        sleep 3
+        for dev in $(find /sys/class/net -name "zt*" -exec basename {} \;); do
+            ip link set dev "$dev" arp on
+            loginfo -s "已自动修复网卡 $dev 的 ARP 协议"
+        done
+    ) &
+}
+
+post_install(){
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        logerr "需要安装并运行 Entware 服务再进行重装应用！"
+        return 1
+    fi
+    opkg update && opkg install zerotier
+}
+
+pre_uninstall() {
+    opkg remove zerotier
+    remove_zone
+}
+
+#    iptables -D FORWARD -i zt+ -o br-lan -j ACCEPT 2>/dev/null
+#    iptables -I FORWARD -i zt+ -o br-lan -j ACCEPT
+#    iptables -D FORWARD -i br-lan -o zt+ -j ACCEPT 2>/dev/null
+#    iptables -I FORWARD -i br-lan -o zt+ -j ACCEPT
+
+
+setup_zone() {
+    uci set firewall.zerotier=zone
+    uci set firewall.zerotier.name='zerotier'
+    uci set firewall.zerotier.input='ACCEPT'
+    uci set firewall.zerotier.output='ACCEPT'
+    uci set firewall.zerotier.forward='ACCEPT'
+    #uci set firewall.zerotier.masq='1'                   # Export NAT 开启地址伪装 (MASQUERADE)
+    uci del firewall.zerotier.device 2>/dev/null
+    uci add_list firewall.zerotier.device="zt+"
+    uci del firewall.zerotier.match_devices 2>/dev/null
+    uci set firewall.zerotier.match_devices='zt+'
+
+    # 建立 ZeroTier -> LAN 的区域转发 (Forwarding)
+    uci set firewall.zerotier_to_lan=forwarding
+    uci set firewall.zerotier_to_lan.src='zerotier'
+    uci set firewall.zerotier_to_lan.dest='lan'
+
+    # 建立 LAN -> ZeroTier 的区域转发 (Forwarding)
+    uci set firewall.lan_to_zerotier=forwarding
+    uci set firewall.lan_to_zerotier.src='lan'
+    uci set firewall.lan_to_zerotier.dest='zerotier'
+    uci commit firewall
+    /etc/init.d/firewall reload >/dev/null 2>&1
+}
+
+remove_zone() {
+    uci del firewall.zerotier 2>/dev/null
+    uci del firewall.zerotier_to_lan 2>/dev/null
+    uci del firewall.lan_to_zerotier 2>/dev/null
+    uci commit firewall
+    /etc/init.d/firewall reload >/dev/null 2>&1
+}

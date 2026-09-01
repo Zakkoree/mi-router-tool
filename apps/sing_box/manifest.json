@@ -1,0 +1,10 @@
+{
+  "id": "sing_box",
+  "name": "Sing box",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "为极致性能与超低内存设计、协议最前沿的通用代理平台",
+  "icon": "https://sing-box.sagernet.org/assets/icon.svg",
+  "url": "https://sing-box.sagernet.org"
+}

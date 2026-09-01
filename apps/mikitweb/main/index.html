@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIKIT</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYmdHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMTcyYSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxZTI5M2IiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InByaW1hcnlHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzNiODJmNiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyNTYzZWIiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImFjY2VudEdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDZiNmQ0Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzNiODJmNiIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CgogIDxyZWN0IHg9IjMyIiB5PSIzMiIgd2lkdGg9IjQ0OCIgaGVpZ2h0PSI0NDgiIHJ4PSIxMTIiIGZpbGw9InVybCgjYmdHcmFkKSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjgiLz4KICAKICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLCA4KSI+CiAgICA8cGF0aCBkPSJNMTI4IDE2MCBMMTg0IDEyOCBMMTg0IDM1MiBMMTI4IDM4NCBaIiBmaWxsPSJ1cmwoI3ByaW1hcnlHcmFkKSIgb3BhY2l0eT0iMC45Ii8+CiAgICA8cGF0aCBkPSJNMTg0IDE2MCBMMjU2IDIyNCBMMjU2IDMyMCBMMDE4NCAyMjQgWiIgZmlsbD0iIzFkNGVkOCIvPgogICAgPHBhdGggZD0iTTMyOCAxMjggTDI1NiAyMjQgTDI1NiAzMjAgTDMyOCAyMjQgWiIgZmlsbD0iIzAyODRjNyIvPgogICAgPHBhdGggZD0iTTM4NCAxNjAgTDMyOCAxMjggTDMyOCAzNTIgTDM4NCAzODQgWiIgZmlsbD0idXJsKCNhY2NlbnRHcmFkKSIvPgogICAgCiAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxMzYiIHI9IjIwIiBmaWxsPSIjMzhiZGY4Ii8+CiAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxMzYiIHI9IjEwIiBmaWxsPSIjZmZmZmZmIi8+CiAgPC9nPgo8L3N2Zz4=" />
+    <script src="resource/js/tailwindcss.js"></script>
+    <script src="resource/js/api.js"></script>
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(2px) scale(0.99);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .tab-btn {
+            color: #64748b;
+        }
+        .tab-btn:hover {
+            color: #0f172a;
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .tab-btn.active {
+            background-color: #ffffff !important;
+            color: #2563eb !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+        }
+        .tab-btn.active svg {
+            stroke: #2563eb;
+        }
+    </style>
+</head>
+<body class="bg-slate-100/70 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+<header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+
+        <div class="flex items-center gap-2.5 shrink-0 sm:flex-1">
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                <img
+                        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYmdHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBmMTcyYSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMxZTI5M2IiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InByaW1hcnlHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzNiODJmNiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyNTYzZWIiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImFjY2VudEdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDZiNmQ0Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzNiODJmNiIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CgogIDxyZWN0IHg9IjMyIiB5PSIzMiIgd2lkdGg9IjQ0OCIgaGVpZ2h0PSI0NDgiIHJ4PSIxMTIiIGZpbGw9InVybCgjYmdHcmFkKSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjgiLz4KICAKICA8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLCA4KSI+CiAgICA8cGF0aCBkPSJNMTI4IDE2MCBMMTg0IDEyOCBMMTg0IDM1MiBMMTI4IDM4NCBaIiBmaWxsPSJ1cmwoI3ByaW1hcnlHcmFkKSIgb3BhY2l0eT0iMC45Ii8+CiAgICA8cGF0aCBkPSJNMTg0IDE2MCBMMjU2IDIyNCBMMjU2IDMyMCBMMDE4NCAyMjQgWiIgZmlsbD0iIzFkNGVkOCIvPgogICAgPHBhdGggZD0iTTMyOCAxMjggTDI1NiAyMjQgTDI1NiAzMjAgTDMyOCAyMjQgWiIgZmlsbD0iIzAyODRjNyIvPgogICAgPHBhdGggZD0iTTM4NCAxNjAgTDMyOCAxMjggTDMyOCAzNTIgTDM4NCAzODQgWiIgZmlsbD0idXJsKCNhY2NlbnRHcmFkKSIvPgogICAgCiAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxMzYiIHI9IjIwIiBmaWxsPSIjMzhiZGY4Ii8+CiAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxMzYiIHI9IjEwIiBmaWxsPSIjZmZmZmZmIi8+CiAgPC9nPgo8L3N2Zz4="
+                        alt="MIKIT Web Logo"
+                        class="w-full h-full object-cover transform scale-105"
+                />
+            </div>
+            <span class="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight hidden md:inline-block">MIKIT Web</span>
+        </div>
+
+        <nav class="flex justify-center shrink-0">
+            <div class="inline-flex p-1 bg-slate-200/60 rounded-2xl border border-slate-300/50 backdrop-blur-sm gap-0.5 sm:gap-1">
+
+                <button data-tab="dashboard" onclick="navTo('dashboard')" class="tab-btn px-2.5 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 select-none group shrink-0">
+                    <svg class="w-4 h-4 stroke-slate-400 group-hover:stroke-slate-600 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    <span class="hidden sm:inline">欢迎</span>
+                </button>
+
+                <button data-tab="apps" onclick="navTo('apps')" class="tab-btn px-2.5 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 select-none group shrink-0">
+                    <svg class="w-4 h-4 stroke-slate-400 group-hover:stroke-slate-600 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    <span class="hidden sm:inline">应用</span>
+                </button>
+
+                <button data-tab="store" onclick="navTo('store')" class="tab-btn px-2.5 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 select-none group shrink-0">
+                    <svg class="w-4 h-4 stroke-slate-400 group-hover:stroke-slate-600 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <span class="hidden sm:inline">商店</span>
+                </button>
+
+                <button data-tab="system" onclick="navTo('system')" class="tab-btn px-2.5 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 select-none group shrink-0">
+                    <svg class="w-4 h-4 stroke-slate-400 group-hover:stroke-slate-600 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="hidden sm:inline">设置</span>
+                </button>
+
+            </div>
+        </nav>
+
+        <div class="flex items-center justify-end shrink-0 sm:flex-1">
+            <div class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-200/60 text-xs font-semibold">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="hidden sm:inline">运行正常</span>
+            </div>
+        </div>
+
+    </div>
+</header>
+
+<main id="app-content" class="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 pb-12 flex-1"></main>
+
+<script type="module">
+    import './resource/js/app.js';
+
+    const ALLOWED_TABS = ['dashboard', 'apps', 'store', 'system'];
+    let currentTab = null;
+
+    function switchTab(tabName) {
+        if (currentTab === tabName) return;
+        currentTab = tabName;
+
+        const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (targetBtn) targetBtn.classList.add('active');
+
+        if (window.app && typeof window.app.load === 'function') {
+            window.app.load(tabName, targetBtn);
+        }
+    }
+
+    window.navTo = function (tabName) {
+        if (window.location.hash.replace('#', '') === tabName) {
+            return;
+        }
+        window.location.hash = tabName;
+    };
+
+    function handleRoute() {
+        const hash = window.location.hash.replace('#', '').trim();
+        const initialTab = ALLOWED_TABS.includes(hash) ? hash : 'dashboard';
+
+        if (!hash || !ALLOWED_TABS.includes(hash)) {
+            window.location.replace(`#${initialTab}`);
+        }
+
+        switchTab(initialTab);
+    }
+
+    app.register('dashboard', '/pages/dashboard.js')
+        .register('apps', '/pages/apps.js')
+        .register('store', '/pages/store.js')
+        .register('system', '/pages/system.js');
+
+    window.addEventListener('hashchange', handleRoute);
+    document.addEventListener('DOMContentLoaded', handleRoute);
+</script>
+</body>
+</html>

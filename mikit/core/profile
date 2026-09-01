@@ -1,0 +1,4 @@
+#!/bin/sh
+# [ -f /data/mikit/data/profile ] && . /data/mikit/data/profile
+
+

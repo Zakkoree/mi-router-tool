@@ -1,0 +1,39 @@
+#!/bin/sh /etc/mk.rc.common
+
+BIN="/tmp/cgi-bin/"
+
+start_service() {
+    service_running >/dev/null 2>&1 && return 0
+    mkdir -p /tmp/cgi-bin  2>/dev/null
+    local SOURCE="/www/cgi-bin/"
+    cp -a "$SOURCE". $BIN >/dev/null 2>&1
+    if ! mount | grep -q "$SOURCE"; then
+        cp -a "$SOURCE". "$BIN" >/dev/null 2>&1
+        mount --bind "$BIN" "$SOURCE" >/dev/null 2>&1
+    fi
+    sed '/mikit api router/d' "$BIN/luci" | \
+    sed "\|/usr/bin/lua|a pcall(function() local f = loadfile(\"${APP_DIR}/mikit_route.lua\") if f then f() end end) -- mikit api router" > /tmp/luci.tmp
+    cat /tmp/luci.tmp > "$BIN/luci" && rm -f /tmp/luci.tmp
+    nginx_set_domain "mikit.com" "$APP_DIR" "/api/" "http://127.0.0.1/cgi-bin/luci/mikit/"
+
+    echo " 访问地址 mikit.com"
+}
+
+stop_service() {
+    pre_uninstall
+}
+
+service_running() {
+    if [ -f "$BIN/luci" ] && grep -q "${APP_DIR}/mikit_route.lua" "$BIN/luci" 2>/dev/null; then
+        echo "status=running pid=0"
+        return 0
+    fi
+    echo "status=stopped pid=0"
+    return 1
+}
+
+pre_uninstall() {
+    sed -i '/mikit api router/d' "$BIN/luci" >/dev/null 2>&1
+    sed '/mikit api router/d' "$BIN/luci" > /tmp/luci.tmp && cat /tmp/luci.tmp > "$BIN/luci" && rm -f /tmp/luci.tmp
+    nginx_delete_one "mikit.com" >/dev/null 2>&1
+}

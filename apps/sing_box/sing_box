@@ -1,0 +1,49 @@
+#!/bin/sh /etc/mk.rc.common
+
+EXTRA_COMMANDS="test_config"
+EXTRA_HELP="$(printf '\test_config\t测试配置')"
+
+PROG="$APP_DIR/bin/sing-box"
+#SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+start_service() {
+    procd_open_instance
+    procd_set_param command $PROG run -c "$APP_DATA_DIR/config.json" -D $APP_DATA_DIR
+    procd_set_param env SSL_CERT_FILE="$APP_DIR/ca-certificates.pem"
+    procd_set_param respawn
+    procd_set_param stderr 1
+    procd_close_instance
+}
+# route -n | grep '^0.0.0.0' | awk '{print $8}'
+#"default_interface": "eth0.2",
+test_config() {
+    if $PROG check -c "$APP_DATA_DIR/config.json"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
+post_install(){
+    local tmp_download="$MIKIT_TMP/sing-box.tar.gz"
+    local arch="$SYSTEM_ARCH"
+
+    case $SYSTEM_ARCH in
+    arm64) arch="arm64-musl" ;;
+    armv*) arch="armv5" ;;
+    mips*) [ "$HARDWARE_COMPLETE" = "0" ] && arch="$arch-softfloat" ;;
+    esac
+    local url="${MIRROR}https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-linux-${arch}.tar.gz"
+    if ! curl -fSL --progress-bar --connect-timeout 5 "$url" -o "$tmp_download" || [ ! -s "$tmp_download" ]; then
+        echo -e "\n ❌ 下载失败，请重新尝试卸载重装！"
+        rm -f "$tmp_download" 2>/dev/null
+        return 1
+    fi
+    mkdir -p "$APP_DIR/bin"
+    tar -xzf "$tmp_download" -C "$APP_DIR/bin/" --strip-components=1 2>/dev/null
+    chmod-R +x "$APP_DIR/bin/"
+    [ ! -f "$APP_DATA_DIR/config.json" ] && cp "$APP_DIR/config_1.13.json" "$APP_DATA_DIR/config.json"
+    return 0
+}
+

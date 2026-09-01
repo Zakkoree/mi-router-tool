@@ -1,0 +1,135 @@
+{
+  "source_id": "mikit",
+  "source_url": "https://github.com/Zakkoree/mi-router-tool",
+  "apps": [
+    {
+      "id": "entware",
+      "name": "Entware",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "轻量级 Linux 软件包管理器扩展源",
+      "icon": "https://entware.net/favicon.ico",
+      "url": "https://entware.net"
+    },
+    {
+      "id": "beszel_agent",
+      "name": "Beszel Agent",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "轻量级服务器监控 Agent",
+      "icon": "https://www.beszel.dev/icon.svg",
+      "url": "https://www.beszel.dev"
+    },
+    {
+      "id": "zerotier",
+      "name": "Zerotier",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "虚拟局域网组网工具(依赖 Entware)",
+      "icon": "https://www.zerotier.com/wp-content/uploads/2026/05/ZeroTier-Gold-and-Black-Logo-Filled-Inverted.svg",
+      "url": "https://www.zerotier.com"
+    },
+    {
+      "id": "tailscale",
+      "name": "Tailscale",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "虚拟局域网组网工具(依赖 Entware)",
+      "icon": "https://tailscale.com/favicon.svg",
+      "url": "https://tailscale.com"
+    },
+    {
+      "id": "mihomo",
+      "name": "Mihomo",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "继承并超越原版 Clash 的、生态成熟的经典代理内核",
+      "icon": "https://avatars.githubusercontent.com/u/84378451?s=60&v=4",
+      "url": "https://github.com/MetaCubeX/mihomo"
+    },
+    {
+      "id": "sing_box",
+      "name": "Sing box",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "为极致性能与超低内存设计、协议最前沿的通用代理平台",
+      "icon": "https://sing-box.sagernet.org/assets/icon.svg",
+      "url": "https://sing-box.sagernet.org"
+    },
+    {
+      "id": "gost",
+      "name": "Gost",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "功能极其强大的安全隧道与多协议代理服务软件",
+      "icon": "https://gost.run/images/favicon.ico",
+      "url": "https://gost.run"
+    },
+    {
+      "id": "aria2",
+      "name": "Aria2",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "轻量级、多协议、多源的高性能下载工具(依赖 Entware)",
+      "icon": "https://aria2.github.io/favicon.png",
+      "url": "https://github.com/aria2/aria2"
+    },
+    {
+      "id": "gopeed",
+      "name": "Gopeed",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "arm64",
+      "desc": "轻量级高性能下载管理器管理器",
+      "url": "https://github.com/Zakkoree/mi-router-tool"
+    },
+    {
+      "id": "minidlna",
+      "name": "MiniDLNA",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "极其轻量 DLNA / UPnP-AV 媒体服务器(依赖 Entware)",
+      "icon": "https://minidlna.com/assets/images/favicon.svg",
+      "url": "https://minidlna.com"
+    },
+    {
+      "id": "frp",
+      "name": "Frp",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "高性能反向代理与内网穿透工具",
+      "icon": "https://gofrp.org/favicons/favicon-32x32.png",
+      "url": "https://gofrp.org"
+    },
+    {
+      "id": "rathole",
+      "name": "Rathole",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "高性能、轻量级内网穿透（NAT 穿透）与反向代理工具",
+      "icon": "https://avatars.githubusercontent.com/u/97967683?s=60&v=4",
+      "url": "https://github.com/rathole-org/rathole"
+    },
+    {
+      "id": "openlist",
+      "name": "OpenList",
+      "version": "1.0.0",
+      "author": "Zakkoree",
+      "arch": "all",
+      "desc": "网盘聚合与文件管理工具",
+      "icon": "https://doc.oplist.org/favicon.svg",
+      "url": "https://doc.oplist.org"
+    }
+  ]
+}

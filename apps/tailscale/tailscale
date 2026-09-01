@@ -1,0 +1,96 @@
+#!/bin/sh /etc/mk.rc.common
+
+EXTRA_COMMANDS="setup_zone remove_zone"
+EXTRA_HELP="$(printf '\tsetup_zone\t开启防火墙
+\tremove_zone\t重置/删除防火墙规则')"
+
+PROG="/opt/bin/tailscaled"
+dnsmasq_conf=/etc/dnsmasq.d/tailscale_dnsmasq.conf
+start_service() {
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        return 1
+    fi
+    if [ ! -x "$PROG" ]; then
+        logerr "未找到 zerotier-one 可执行程序！"
+        return 1
+    fi
+    rm -rf /opt/var/run/tailscale /opt/var/lib/tailscale
+    mkdir -p /opt/var/lib/tailscale
+    ln -sf "$APP_DATA_DIR" /opt/var/run/tailscale
+    ln -sf "$APP_DATA_DIR" /opt/var/lib/tailscale
+    if [ ! -e "$dnsmasq_conf" ] && [ ! -L "$dnsmasq_conf" ]; then
+        ln -sf "$APP_DIR/dnsmasq.conf" "$dnsmasq_conf"
+        /etc/init.d/dnsmasq reload >/dev/null 2>&1
+    fi
+    # --state="$APP_DATA_DIR/tailscaled.state" --socket="$APP_DATA_DIR/tailscaled.sock"
+    procd_open_instance
+    procd_set_param command $PROG
+    procd_set_param respawn
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+post_install(){
+    if ! inspect_entware; then
+        logerr "Entware 服务未安装或未运行！"
+        logerr "需要安装运行 Entware 服务再进行重装应用！"
+        return 1
+    fi
+    local arch=""
+
+    case $SYSTEM_ARCH in
+    armv*)
+        if [ "$HARDWARE_COMPLETE" = "0" ]; then
+            echo "❌ 错误: 当前 ARM 架构缺少 VFP/NEON 硬件浮点指令集！无法运行该应用"
+            return 1
+        fi
+        ;;
+    esac
+    opkg update && opkg install tailscale
+}
+
+pre_uninstall() {
+    opkg remove tailscale
+    remove_zone
+    rm "$dnsmasq_conf" 2>/dev/null
+}
+
+#    iptables -D FORWARD -i zt+ -o br-lan -j ACCEPT 2>/dev/null
+#    iptables -I FORWARD -i zt+ -o br-lan -j ACCEPT
+#    iptables -D FORWARD -i br-lan -o zt+ -j ACCEPT 2>/dev/null
+#    iptables -I FORWARD -i br-lan -o zt+ -j ACCEPT
+
+
+setup_zone() {
+    uci set firewall.tailscale=zone
+    uci set firewall.tailscale.name='tailscale'
+    uci set firewall.tailscale.input='ACCEPT'
+    uci set firewall.tailscale.output='ACCEPT'
+    uci set firewall.tailscale.forward='ACCEPT'
+    #uci set firewall.tailscale.masq='1'                   # Export NAT 开启地址伪装 (MASQUERADE)
+    uci del firewall.tailscale.device 2>/dev/null
+    uci add_list firewall.tailscale.device="tailscale+"
+    uci del firewall.tailscale.match_devices 2>/dev/null
+    uci set firewall.tailscale.match_devices='tailscale+'
+
+    # 建立 tailscale -> LAN 的区域转发 (Forwarding)
+    uci set firewall.tailscale_to_lan=forwarding
+    uci set firewall.tailscale_to_lan.src='tailscale'
+    uci set firewall.tailscale_to_lan.dest='lan'
+
+    # 建立 LAN -> tailscale 的区域转发 (Forwarding)
+    uci set firewall.lan_to_tailscale=forwarding
+    uci set firewall.lan_to_tailscale.src='lan'
+    uci set firewall.lan_to_tailscale.dest='tailscale'
+    uci commit firewall
+    /etc/init.d/firewall reload >/dev/null 2>&1
+}
+
+remove_zone() {
+    uci del firewall.tailscale 2>/dev/null
+    uci del firewall.tailscale_to_lan 2>/dev/null
+    uci del firewall.lan_to_tailscale 2>/dev/null
+    uci commit firewall
+    /etc/init.d/firewall reload >/dev/null 2>&1
+}

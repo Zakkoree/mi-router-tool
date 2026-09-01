@@ -1,0 +1,10 @@
+{
+  "id": "zerotier",
+  "name": "Zerotier",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "虚拟局域网组网工具(依赖 Entware)",
+  "icon": "https://www.zerotier.com/wp-content/uploads/2026/05/ZeroTier-Gold-and-Black-Logo-Filled-Inverted.svg",
+  "url": "https://www.zerotier.com"
+}

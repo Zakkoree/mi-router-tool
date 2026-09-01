@@ -1,0 +1,10 @@
+{
+  "id": "frp",
+  "name": "Frp",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "高性能反向代理与内网穿透工具",
+  "icon": "https://gofrp.org/favicons/favicon-32x32.png",
+  "url": "https://gofrp.org"
+}

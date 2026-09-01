@@ -1,0 +1,10 @@
+{
+  "id": "openlist",
+  "name": "OpenList",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "网盘聚合与文件管理工具",
+  "icon": "https://doc.oplist.org/favicon.svg",
+  "url": "https://doc.oplist.org"
+}

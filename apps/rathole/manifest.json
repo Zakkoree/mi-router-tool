@@ -1,0 +1,10 @@
+{
+  "id": "rathole",
+  "name": "Rathole",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "高性能、轻量级内网穿透（NAT 穿透）与反向代理工具",
+  "icon": "https://avatars.githubusercontent.com/u/97967683?s=60&v=4",
+  "url": "https://github.com/rathole-org/rathole"
+}

@@ -1,0 +1,76 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="设置信息端口:set_port|设置视频路径:set_video_dir|设置音频路径:set_audio_dir|设置图片路径:set_picture_dir|重建媒体数据库:rebuild"
+
+refresh() { APP_EXTRA_INFO=$(get_config); }
+
+
+handle_media_setting() {
+    local type_name="$1"
+    local db_key="$2"
+
+    read -p "请输入新的${type_name}文件夹绝对路径: " new_dir
+
+    if [ -d "$new_dir" ]; then
+        mikit_db set "$db_key" "$new_dir"
+        "$APP_SCRIPT" refresh_minidlna_conf
+        echo -e "\n ✅ 设置成功 【$new_dir】！"
+    else
+        echo -e "\n ❌ 错误：该目录在系统中不存在，请检查！"
+        return 1
+    fi
+}
+
+set_video_dir() {
+    handle_media_setting "视频" "minidlna_v_dir"
+}
+
+set_audio_dir() {
+    handle_media_setting "音频" "minidlna_a_dir"
+}
+
+set_picture_dir() {
+    handle_media_setting "图片" "minidlna_p_dir"
+}
+get_config() {
+    local current_val=$(mikit_db get "port" 2>/dev/null)
+    local v_current=$(mikit_db get "minidlna_v_dir" 2>/dev/null)
+    local a_current=$(mikit_db get "minidlna_a_dir" 2>/dev/null)
+    local p_current=$(mikit_db get "minidlna_p_dir" 2>/dev/null)
+    echo " [当前信息端口：$current_val]\n [当前视频路径: ${v_current:-未设置}]\n [当前音频路径: ${a_current:-未设置}]\n [当前图片路径: ${p_current:-未设置}]"
+}
+
+rebuild() {
+    if [ "&APP_STATUS" = "1" ]; then
+        rm -rf $APP_DATA_DIR/db/*
+        "$APP_SCRIPT" restart
+    else
+        rm -rf $APP_DATA_DIR/db/*
+    fi
+    echo -e "\n ✅ 重建成功！"
+}
+
+set_port() {
+
+    read -p "请输入新的端口号 (直接回车保持不变): " new_port
+    if [ -z "$new_port" ]; then
+        echo -e "\n ❗ 未输入新端口，保持原样。"
+        return
+    fi
+    if ! echo "$new_port" | grep -q '^[0-9]\+$'; then
+        echo -e "\n ❌ 错误：端口号必须是纯数字！"
+        return 1
+    fi
+
+    if [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; then
+        echo -e "\n ❌ 错误：端口号必须在 1 到 65535 之间！"
+        return 1
+    fi
+
+    mikit_db set "port" "$new_port"
+    "$APP_SCRIPT" refresh_minidlna_conf
+    [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" restart
+    echo -e "\n ✅ 端口号已成功更新为: $new_port"
+
+}
+

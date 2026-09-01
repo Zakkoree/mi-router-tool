@@ -1,0 +1,877 @@
+#!/bin/sh
+. $MIKIT_DIR/core/env.sh
+. $MIKIT_DIR/core/app_mgr.sh
+
+# 说明: 从 conf_get_list 读取已安装应用，并交互式管理
+list_installed_apps() {
+    local tmp_status_dir="$MIKIT_TMP/.mikit_app_status_$$"
+
+    while true; do
+        clear
+        main_line
+        print_center "📦 ${C_BOLD}管理应用${C_RESET}" 5
+        sub_line
+
+        local app_list="$(mikit_db get "apps")"
+
+        if [ -z "$app_list" ]; then
+            print_center "🤹 ${C_NOR_YELLOW}目前尚未安装任何应用${C_RESET}" 11
+            main_line
+            pause
+            break
+        fi
+
+        mkdir -p "$tmp_status_dir"
+
+        # 快速触发后台并发检测（纯后台，极速放行）
+        for app_id in $app_list; do
+            [ -z "$app_id" ] && continue
+            (
+                local app_bin="$MIKIT_DATA_DIR/apps/$app_id/$app_id"
+                if [ -x "$app_bin" ] && "$app_bin" status >/dev/null 2>&1; then
+                    echo "1" > "$tmp_status_dir/$app_id.status"
+                else
+                    echo "0" > "$tmp_status_dir/$app_id.status"
+                fi
+            ) </dev/null >/dev/null 2>&1 &
+        done
+
+        # 在等待 status 的同时，预提取所有静态 DB 参数
+        local total_apps=0
+        for app_id in $app_list; do
+            [ -z "$app_id" ] && continue
+            total_apps=$((total_apps + 1))
+
+            local app_name="$(mikit_db get "${app_id}.name" 2>/dev/null)"
+            local app_ver="$(mikit_db get "${app_id}.version" 2>/dev/null)"
+            local priority="$(mikit_db get "$app_id.priority" 2>/dev/null)"
+            local start="$(mikit_db get "$app_id.start" 2>/dev/null)"
+
+            eval "APP_ID_${total_apps}=\"$app_id\""
+            eval "APP_NAME_${total_apps}=\"${app_name:-$app_id}\""
+            eval "APP_VER_${total_apps}=\"${app_ver}\""
+            eval "APP_PRIO_${total_apps}=\"${priority:-99}\""
+            eval "APP_START_${total_apps}=\"${start}\""
+        done
+
+        local idx=1
+        while [ "$idx" -le "$total_apps" ]; do
+            eval "local app_id=\$APP_ID_${idx}"
+            eval "local app_name=\$APP_NAME_${idx}"
+            eval "local app_ver=\$APP_VER_${idx}"
+            eval "local priority=\$APP_PRIO_${idx}"
+            eval "local start=\$APP_START_${idx}"
+
+            local status_file="$tmp_status_dir/$app_id.status"
+            local elapsed=0
+
+            # 如果极个别慢进程还没好，才进行微秒级等待
+            while [ ! -f "$status_file" ] && [ $elapsed -lt 300 ]; do
+                sleep 0.01 2>/dev/null || usleep 10000 2>/dev/null
+                elapsed=$((elapsed + 10))
+            done
+
+            local is_running=""
+            [ -f "$status_file" ] && read -r is_running < "$status_file" 2>/dev/null
+
+            local status_icon="${C_RED}🔴${C_RESET}"
+            [ "$is_running" = "1" ] && status_icon="${C_GREEN}🟢${C_RESET}"
+
+            # 格式化优先级
+            [ "${#priority}" -eq 1 ] && priority="0$priority"
+            local priority_str="${C_DIM}${priority}${C_RESET}"
+            [ "$start" = "1" ] && priority_str="${C_NOR_CYAN}${priority}${C_RESET}"
+
+            # 格式化序号
+            local formatted_idx="$idx"
+            [ "$idx" -lt 10 ] && formatted_idx="0$idx"
+
+            [ -n "$app_ver" ] && app_ver="${C_DIM}(v${app_ver})${C_RESET}"
+
+            printf "  ${C_GREEN}${formatted_idx})${C_RESET} ${status_icon} ${priority_str} ${C_BOLD}%-36.36s${C_RESET} ${app_ver}\n" "$app_name"
+
+            eval "INSTALLED_APP_${idx}=\"\$MIKIT_DATA_DIR/apps/$app_id/menu\""
+            idx=$((idx + 1))
+        done
+
+        wait 2>/dev/null
+        rm -f "$tmp_status_dir"/* 2>/dev/null
+
+        sub_line
+        echo -e "  ${C_GRAY}00)${C_RESET} 🔙 返回"
+        main_line
+        printf " 👉 请选择要管理的应用 [${C_BOLD}0-${total_apps}${C_RESET}]: "
+        read -r choice
+
+        case "$choice" in
+            ''|*[!0-9]*)
+                echo -e "\n ❌ 输入无效，请输入有效数字！"
+                pause
+                continue
+                ;;
+        esac
+
+        local clean_choice="$choice"
+        case "$clean_choice" in
+            0|00|000) clean_choice="0" ;;
+            0*) clean_choice="${clean_choice#0}" ;;
+        esac
+
+        if [ "$clean_choice" = "0" ]; then
+            rm -rf "$tmp_status_dir" 2>/dev/null
+            break
+        fi
+
+        if [ "$clean_choice" -ge 1 ] && [ "$clean_choice" -le "$total_apps" ] 2>/dev/null; then
+            eval "local target_script=\$INSTALLED_APP_${clean_choice}"
+            if [ -n "$target_script" ] && [ -f "$target_script" ]; then
+                [ ! -x "$target_script" ] && chmod +x "$target_script"
+                "$target_script" "$target_script"
+            else
+                echo -e "\n ❌ 无此选项或应用菜单脚本丢失！"
+                pause
+            fi
+        else
+            echo -e "\n ❌ 无此选项，请重新输入！"
+            pause
+        fi
+    done
+
+    rm -rf "$tmp_status_dir" 2>/dev/null
+}
+
+uninstall_installed_apps() {
+    local last_count=0
+    while true; do
+        clear
+        main_line
+        print_center "🚨 ${C_BOLD}${C_RED}卸载应用${C_RESET}" 5
+
+        sub_line
+
+        local app_list="$(mikit_db get "apps")"
+
+        if [ -z "$app_list" ]; then
+            print_center "🤹 ${C_NOR_YELLOW}目前尚未安装任何应用${C_RESET}" 11
+            main_line
+            pause
+            break
+        fi
+
+        if [ "$last_count" -gt 0 ]; then
+            local i=1
+            while [ $i -le "$last_count" ]; do
+                unset "INSTALLED_APP_${i}"
+                i=$((i + 1))
+            done
+        fi
+        local idx=1
+        for app_id in $app_list; do
+            [ -z "$app_id" ] && continue
+            local manifest="$MIKIT_DATA_DIR/apps/$app_id/manifest.json"
+
+            local app_name=""
+            local app_ver=""
+
+            # 从 manifest.json 读取名称与版本
+            if [ -f "$manifest" ]; then
+                app_name="$(get_jsonfile_val "$manifest" "name" 2>/dev/null)"
+                app_ver="$(get_jsonfile_val "$manifest" "version" 2>/dev/null)"
+            fi
+
+            [ -z "$app_name" ] && app_name="$app_id"
+
+            priority=$(mikit_db get "$app_id.start")
+
+            local formatted_idx="$(printf '%02d' "$idx")"
+            echo -e "  ${C_RED}${formatted_idx})${C_RESET} ${C_BOLD}${app_name}${C_RESET} ${C_DIM}(${app_id})${C_RESET}"
+
+            eval "INSTALLED_APP_${idx}=\"$app_id\""
+            idx=$((idx + 1))
+        done
+        last_count=$((idx - 1))
+        # 清理并发临时缓存
+        rm -rf "$tmp_status_dir"
+
+        sub_line
+        echo -e "  ${C_GRAY}00)${C_RESET} 🔙 返回"
+        main_line
+        printf " 👉 请选择要卸载应用 [${C_BOLD}0-$((idx - 1))${C_RESET}]: "
+        read choice
+
+        # 4. ⚡ 校验非法输入（非纯数字或空字符）
+        case "$choice" in
+            ''|*[!0-9]*)
+                echo -e "\n ❌ 输入无效，请输入有效数字！"
+                pause
+                continue
+                ;;
+        esac
+
+        # 5. ⚡ 安全剥离前导零（将 00->0, 01->1, 02->2），同时兼容 0 和 00 退出
+        local clean_choice=$(echo "$choice" | sed 's/^0*//')
+        clean_choice="${clean_choice:-0}"
+
+        # 6. 处理 0 / 00 返回上一级
+        if [ "$clean_choice" = "0" ]; then
+            break
+        fi
+
+        eval "local appid=\$INSTALLED_APP_${clean_choice}"
+        uninstall_app "$appid"
+        pause
+    done
+}
+
+# 说明: 遍历应用商店列表，首位提供更新应用源，并支持查看应用与安装
+list_store_apps() {
+    while true; do
+        clear
+        main_line
+        print_center "🏪 ${C_BOLD}应用商店${C_RESET}" 5
+        printf "  %-6.6s %-14.14s %-6.6s  %-10.10s %s\n" "Status" "Neme" "Compat" "Source" "Desc"
+        sub_line
+
+        # 1. 获取已安装列表：ID 列表 + ID:VERSION 格式映射（用于版本比对）
+        local raw_installed_list="$(mikit_db get "apps" | tr '\n\r\t' '   ')"
+        local installed_apps=" ${raw_installed_list} "
+
+        # 假设 conf_get_app_version app_id 可以获取已安装版本；
+        # 如果没有该函数，这里以 ID:VER 映射拼接示范，或在 Awk 遍历时处理
+        local installed_ver_map=" "
+        for app_id in $raw_installed_list; do
+            local ver=""
+            ver="$(mikit_db get "${app_id}.version")"
+            # 哪怕没获取到，也给个 0.0.0 兜底，确保 key:value 映射成立
+            [ -z "$ver" ] && ver="0.0.0"
+            installed_ver_map="${installed_ver_map}${app_id}:${ver} "
+        done
+
+        local store_dir="$MIKIT_DIR/data/store"
+
+        # 2. 清理旧的环境变量映射
+        local var_name
+        for var_name in $(set | awk -F'=' '/^STORE_APP_/ {print $1}'); do
+            unset "$var_name"
+        done
+
+        local idx=1
+        local has_apps=0
+        # 3. 遍历商店 JSON 文件渲染应用列表
+        if [ -d "$store_dir" ]; then
+            for source in "$store_dir"/*.json; do
+                [ ! -f "$source" ] && continue
+                source_id="$(get_jsonfile_val "$source" "source_id")"
+                source_url="$(get_jsonfile_val "$source" "source_url")"
+                local eval_cmd
+                eval_cmd="$(awk -v curr_idx="$idx" -v installed="$installed_apps" -v ver_map="$installed_ver_map" -v sid="$source_id" -v surl="$source_url" -v sys_arch="$SYSTEM_ARCH" '
+                    # 辅助函数: 版本号对比 (v1 > v2 返回 1，否则返回 0)
+                    function version_gt(v1, v2,    a, b, n1, n2, max_len, i, num1, num2) {
+                        gsub(/[^0-9.]/, "", v1)
+                        gsub(/[^0-9.]/, "", v2)
+                        if (v1 == "" || v2 == "") return 0
+
+                        # split 返回数组元素个数
+                        n1 = split(v1, a, ".")
+                        n2 = split(v2, b, ".")
+                        max_len = (n1 > n2) ? n1 : n2
+
+                        for (i = 1; i <= max_len; i++) {
+                            # +0 强制转换为数字（缺位时默认为 0，如比较 1.2.1 和 1.2）
+                            num1 = (i <= n1) ? a[i] + 0 : 0
+                            num2 = (i <= n2) ? b[i] + 0 : 0
+
+                            if (num1 > num2) return 1
+                            if (num1 < num2) return 0
+                        }
+                        return 0
+                    }
+
+                    # 从 ver_map " app1:1.0.0 app2:2.0.0 " 中提取已安装版本
+                    function get_local_ver(app_id,    idx_start, sub_str, ret) {
+                        idx_start = index(ver_map, " " app_id ":")
+                        if (idx_start == 0) return ""
+                        sub_str = substr(ver_map, idx_start + length(app_id) + 2)
+                        split(sub_str, ret, " ")
+                        return ret[1]
+                    }
+
+                    BEGIN {
+                        FS = "\""
+                        app_count = 0
+                    }
+                    # 抓取每个 JSON 字段
+                    /"id"[ \t]*:/      { id = $4 }
+                    /"name"[ \t]*:/    { name = $4 }
+                    /"version"[ \t]*:/ { ver = $4 }
+                    /"author"[ \t]*:/  { author = $4 }
+                    /"arch"[ \t]*:/    { arch = $4 }
+                    /"url"[ \t]*:/     { url = $4 }
+                    /"desc"[ \t]*:/    { desc = $4 }
+
+                    # 遇到花括号闭合，说明一个应用解析结束
+                    /}/ {
+                        if (id != "") {
+                            # 过滤双引号防止 eval 报错
+                            gsub(/"/, "\\\"", name)
+                            gsub(/"/, "\\\"", desc)
+
+                            # --- 图标与安装/可更新状态判定 ---
+                            if (index(installed, " " id " ") > 0) {
+                                local_v = get_local_ver(id)
+                                # 如果商店版本高于本地版本，标记为有更新 ↑  ▲  ⇧  ⇞  ⇪  🆙  🔝  🔝  🔝
+                                if (version_gt(ver, local_v) == 1) {
+                                    status_icon = "${C_YELLOW}↑${C_RESET}"
+                                    is_installed = "upgradable"
+                                } else {
+                                    status_icon = "${C_GREEN}◆${C_RESET}"
+                                    is_installed = "installed"
+                                }
+                                arch_str = ""
+                            } else {
+                                status_icon = "${C_DIM}◇${C_RESET}"
+                                is_installed = "uninstalled"
+
+                            }
+
+                            if (arch == "all") {
+                                arch_str = "${C_NOR_GREEN}[✔]${C_RESET}"
+                            } else if (index("|" arch "|", "|" sys_arch "|") > 0) {
+                                arch_str = "${C_NOR_GREEN}[✔]${C_RESET}"
+                            } else {
+                                arch_str = "${C_NOR_RED}[✖]${C_RESET}"
+                            }
+
+                            # 格式化附加展示信息
+                            #arch_str = (arch != "") ? "${C_DIM}[" arch "]${C_RESET}" : ""
+                            author_str = (author != "") ? "${C_DIM}by ${C_NOR_PURPLE}" author "${C_RESET}" : ""
+
+                            # 生成 Shell 赋值和打印命令
+                            printf "STORE_APP_ID_%d=\"%s\"; ", curr_idx, id
+                            printf "STORE_APP_NAME_%d=\"%s\"; ", curr_idx, (name != "" ? name : id)
+                            printf "STORE_APP_VER_%d=\"%s\"; ", curr_idx, ver
+                            printf "STORE_APP_AUTHOR_%d=\"%s\"; ", curr_idx, author
+                            printf "STORE_APP_ARCH_%d=\"%s\"; ", curr_idx, arch
+                            printf "STORE_APP_URL_%d=\"%s\"; ", curr_idx, url
+                            printf "STORE_APP_DESC_%d=\"%s\"; ", curr_idx, desc
+                            printf "STORE_APP_STATUS_%d=\"%s\"; ", curr_idx, is_installed
+                            printf "STORE_APP_LOCAL_V_%d=\"%s\"; ", curr_idx, local_v
+                            printf "STORE_SID_%d=\"%s\"; ", curr_idx, sid
+                            printf "STORE_SURL_%d=\"%s\"; ", curr_idx, surl
+
+                            printf "echo -e \"  ${C_GREEN}%02d)${C_RESET} %s  ${C_BOLD}%-17.17s${C_RESET} %s  ${C_CYAN}%-10.10s${C_RESET} %s\"; ", curr_idx, status_icon, name, arch_str, sid, desc
+
+                            curr_idx++
+                            app_count++
+                            id = ""; name = ""; ver = ""; author = ""; arch = ""; url = ""; desc = ""
+                        }
+                    }
+                    END {
+                        printf "idx=%d; ", curr_idx
+                        if (app_count > 0) printf "has_apps=1; "
+                    }
+                ' "$source")"
+
+                if [ -n "$eval_cmd" ]; then
+                    eval "$eval_cmd"
+                fi
+            done
+        fi
+
+        if [ "$has_apps" -eq 0 ]; then
+            print_center "🤹 ${C_NOR_YELLOW}暂未本地缓存应用，请先同步云端源${C_RESET}" 16
+        fi
+
+        sub_line
+
+        echo -e "  ${C_BLUE}AA)${C_RESET} 🔄 更新商店"
+
+        echo -e "  ${C_GRAY}00)${C_RESET} 🔙 返回"
+        main_line
+
+        local max_app_choice=$((idx - 1))
+        local max_app_str="${C_BOLD}0${C_RESET}"
+        if [ "$max_app_choice" -ge 1 ]; then
+            max_app_str="${C_BOLD}0-${max_app_choice}${C_RESET}"
+        fi
+        printf " 👉 请选择 [${max_app_str}/A]: "
+        read -r choice
+        case "$choice" in
+            [aA]|[aA][aA])
+                sync_store_index
+                pause; continue ;;
+        esac
+        case "$choice" in
+            ''|*[!0-9]*)
+                echo -e "\n ❌ 输入无效，请输入有效数字！"
+                pause; continue ;;
+        esac
+        local num_choice="${choice#"${choice%%[!0]*}"}"
+        [ -z "$num_choice" ] && num_choice=0
+
+        if [ "$num_choice" -eq 0 ]; then break; fi
+
+#        if [ "$num_choice" = "A" ] || [ "$num_choice" = "a" ] || [ "$num_choice" = "aa" ] || [ "$num_choice" = "AA" ]; then
+#            sync_store_index
+#            pause 1; continue
+#        fi
+
+        if [ "$num_choice" -lt 1 ] || [ "$num_choice" -gt "$max_app_choice" ]; then
+             echo -e "\n ❌ 选项超出范围！"
+             pause; continue
+        fi
+
+        local target_id target_name target_ver target_author target_arch target_url target_desc target_status
+        eval "target_id=\"\${STORE_APP_ID_${num_choice}:-}\""
+        eval "target_name=\"\${STORE_APP_NAME_${num_choice}:-}\""
+        eval "target_ver=\"\${STORE_APP_VER_${num_choice}:-}\""
+        eval "target_author=\"\${STORE_APP_AUTHOR_${num_choice}:-}\""
+        eval "target_arch=\"\${STORE_APP_ARCH_${num_choice}:-}\""
+        eval "target_url=\"\${STORE_APP_URL_${num_choice}:-}\""
+        eval "target_desc=\"\${STORE_APP_DESC_${num_choice}:-}\""
+        eval "target_status=\"\${STORE_APP_STATUS_${num_choice}:-}\""
+        eval "target_local_v=\"\${STORE_APP_LOCAL_V_${num_choice}:-}\""
+        eval "target_sid=\"\${STORE_SID_${num_choice}:-}\""
+        eval "target_surl=\"\${STORE_SURL_${num_choice}:-}\""
+
+        source_id="$target_sid"
+        source_url="$target_surl"
+
+        if [ -n "$target_id" ]; then
+            show_store_app_detail "$target_id" "$target_name" "$target_ver" "$target_desc" "$target_url" "$target_author" "$target_arch" "$target_status" "$target_local_v"
+            pause
+        else
+            echo -e "\n ❌ 无此选项！"
+            pause
+        fi
+    done
+}
+
+
+
+# 说明: 工具箱框架在线检查与自我更新
+toolkit_self_update() {
+    clear
+    main_line
+    print_center "检查 Mi-Toolkit 更新" 4
+    main_line
+    local remote_url="https://api.github.com/repos/Zakkoree/mi-router-tool/releases/latest"
+    echo " 🔍 正在检查最新版本..."
+    remote_ver=$(curl -sSL --connect-timeout 5 -m 10 "$remote_url" 2>/dev/null | grep -oE '"tag_name": *"[^"]+"' | head -n1 | cut -d'"' -f4)
+#    remote_ver=$(echo "$RELEASE_JSON" | grep -oE '"tag_name": *"[^"]+"' | head -n1 | cut -d'"' -f4)
+#    local remote_ver="$(curl -sSL --connect-timeout 8 "$remote_url" 2>/dev/null | tr -d '\r')"
+    if [ $? -eq 0 ] && [ -n "$remote_ver" ]; then
+        :
+    else
+        echo -e "\n ❌ 获取远程内容失败"
+        pause
+        return 1
+    fi
+    echo " 💾 本地版本: v${MIKIT_VER}"
+    echo " 🌐 最新版本: v${remote_ver:-$MIKIT_VER}"
+
+    if version_gt "$remote_ver" "$MIKIT_VER"; then
+        echo " 🎉 发现新版本！"
+        read -r -p "是否更新？(y/N): " confirm
+    else
+        echo -e "\n 💡 当前工具箱已是最新版本，无需更新。"
+        read -r -p "是否重装？(y/N): " confirm
+    fi
+
+    if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+        echo " 🚀 正在下载..."
+        local pkg_url="${MIRROR}https://github.com/Zakkoree/mi-router-tool/releases/download/${remote_ver}/mikit.tar.gz"
+        local tmp_pkg="$MIKIT_TMP/mikit-update.tar.gz"
+        if curl -fsSL --connect-timeout 5 "$pkg_url" -o "$tmp_pkg" 2>/dev/null && [ -s "$tmp_pkg" ]; then
+            echo " 📦 正在解压并热更新..."
+            tar -zxf "$tmp_pkg" -C "$MIKIT_DIR/.." 2>/dev/null
+            rm -f "$tmp_pkg"
+            chmod +x "$MIKIT_DIR/mikit"
+            chmod -R +x "$MIKIT_DIR/core/"
+            sed -i "s|__MIKIT_DIR__|$MIKIT_DIR|g" "$MIKIT_DIR/core/init.sh"
+            sed -i "s|__MIKIT_DATA_DIR__|$MIKIT_DATA_DIR|g" "$MIKIT_DIR/core/init.sh"
+            "$MIKIT_DIR/core/post_install.sh"
+            echo -e "\n ✅ 工具箱已成功更新至 v${remote_ver}！"
+
+            pause
+            exec sh "$MIKIT_DIR/mikit" "$@"
+        else
+            echo -e "\n ❌ 下载失败！"
+            pause
+        fi
+    else
+        echo -e "\n ❌ 已取消。"
+        pause
+    fi
+}
+
+# 说明: 完全卸载工具箱及所有关联文件、系统服务
+toolkit_uninstall() {
+    echo " 🚨 警告: 您正在卸载 Mi-Toolkit！这将会清理所有已安装的应用以及配置。"
+    echo ""
+    printf "确认要继续卸载吗？(y/N): "
+    read confirm
+
+    if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+        echo ""
+        echo "正在停止并调用应用自定义卸载钩子..."
+        local app_list="$(mikit_db get "apps")"
+        for appid in $app_list; do
+            [ -z "$appid" ] && continue
+            echo " [$appid] pre_uninstall ..."
+            if [ -x "$MIKIT_DATA_DIR/apps/$appid/$appid" ]; then
+                "$MIKIT_DATA_DIR/apps/$appid/$appid" stop
+                "$MIKIT_DATA_DIR/apps/$appid/$appid" pre_uninstall
+            fi
+        done
+        auto_start_uninstall
+        dns_clear_all
+        sed -i '/# MIKIT_PROFILE/,/# MIKIT_PROFILE_END/d' /etc/profile
+        sed -i '/# MIKIT_PROFILE/d' /etc/rc.local
+        echo "正在删除工具箱和应用目录..."
+        rm -rf "$MIKIT_DATA_DIR"
+        rm -rf "$MIKIT_DIR"
+        echo -e "\n ✅ Mi-Toolkit 已成功从系统中卸载！"
+        cd /root 2>/dev/null || cd /
+        exit 0
+    else
+        echo " ❌ 已取消卸载操作。"
+        pause
+    fi
+}
+
+backup_toolkit() {
+    clear
+    main_line
+    print_center "${C_BOLD}${C_GREEN}💾 备份配置${C_RESET}" 4
+    sub_line
+
+    local default_backup_dir="/data/mikit_backups"
+    echo -e " 📁 默认保存位置: ${C_YELLOW}${default_backup_dir}${C_RESET}"
+    printf " 👉 请输入保存位置 (直接回车使用默认路径): "
+    read -r user_dir
+
+    local backup_dir="${user_dir:-$default_backup_dir}"
+
+    if ! mkdir -p "$backup_dir"; then
+        echo -e "\n ❌ 无法创建备份目录，请检查权限: ${backup_dir}"
+        pause
+        return 1
+    fi
+
+    local timestamp="$(date +'%Y%m%d_%H%M%S')"
+    local backup_file="${backup_dir}/mikit_backup_${timestamp}.tar.gz"
+
+    if tar -czf "$backup_file" "${MIKIT_DIR}/data" 2>&1 | grep -v "removing leading"; then
+        echo -e "\n ✅ 备份成功！"
+        echo -e " 📄 备份文件: ${C_YELLOW}${backup_file}${C_RESET}"
+        pause
+    else
+        echo -e "\n ❌ 备份失败，请检查存储空间或目标目录权限！"
+        pause
+    fi
+}
+
+restore_toolkit() {
+    clear
+    main_line
+    print_center "${C_BOLD}${C_GREEN}📥 恢复 / 导入备份${C_RESET}" 4
+    sub_line
+
+    echo -e "  ${C_GREEN}1)${C_RESET} 📁 从默认备份目录选择"
+    echo -e "  ${C_GREEN}2)${C_RESET} 📥 手动指定备份文件路径 (支持 WinSCP/SFTP 上传的文件)"
+    echo -e "  ${C_GRAY}0)${C_RESET} 🔙 取消"
+    sub_line
+    printf " 👉 请选择操作模式 [${C_BOLD}0-2${C_RESET}]: "
+    read -r mode_choice
+
+    local target_file=""
+
+    case "$mode_choice" in
+        1)
+            local default_backup_dir="/data/mikit_backups"
+            local file_list=""
+            local count=0
+
+            for f in "$default_backup_dir"/*.tar.gz; do
+                if [ -f "$f" ]; then
+                    count=$((count + 1))
+                    file_list="${file_list}${f}
+"
+                fi
+            done
+
+            if [ "$count" -eq 0 ]; then
+                echo -e "\n ❗ 默认目录 (${default_backup_dir}) 下未找到备份文件！"
+                pause
+                return
+            fi
+
+            echo -e "\n 📁 找到以下备份文件："
+            local idx=1
+            for file in $file_list; do
+                echo -e "  ${C_GREEN}${idx})${C_RESET} $(basename "$file")"
+                idx=$((idx + 1))
+            done
+
+            printf "\n 👉 请选择备份编号 [${C_BOLD}1-${count}${C_RESET}]: "
+            read -r res_choice
+
+            case "$res_choice" in
+                ''|*[!0-9]*)
+                    echo -e "\n ❌ 无效的选择！"
+                    pause
+                    return
+                    ;;
+                *)
+                    if [ "$res_choice" -ge 1 ] && [ "$res_choice" -le "$count" ]; then
+                        # 不使用数组提取第 res_choice 个文件
+                        local curr=1
+                        for f in $file_list; do
+                            if [ "$curr" -eq "$res_choice" ]; then
+                                target_file="$f"
+                                break
+                            fi
+                            curr=$((curr + 1))
+                        done
+                    else
+                        echo -e "\n ❌ 选择编号超出范围！"
+                        pause
+                        return
+                    fi
+                    ;;
+            esac
+            ;;
+
+        2)
+            echo ""
+            printf " 👉 请输入/粘贴备份文件的完整路径 (例如 /tmp/mikit_backup.tar.gz): "
+            read -r custom_file
+
+            custom_file="$(echo "$custom_file" | sed -e 's/^[ "'\'' ]*//' -e 's/[ "'\'' ]*$//')"
+
+            if [ -f "$custom_file" ]; then
+                target_file="$custom_file"
+            else
+                echo -e "\n ❌ 文件不存在: $custom_file"
+                pause
+                return
+            fi
+            ;;
+
+        0|*) return ;;
+    esac
+
+    if [ -n "$target_file" ] && [ -f "$target_file" ]; then
+        echo -e "\n 正在还原文件: ${C_YELLOW}${target_file}${C_RESET} ..."
+        local tar_err
+        tar_err=$(tar -xzf "$target_file" -C / 2>&1)
+        if [ $? -eq 0 ]; then
+            [ -f /etc/profile ] && . /etc/profile >/dev/null 2>&1
+            echo -e "\n ✅ 备份已成功恢复！"
+            pause
+        else
+            echo -e "\n ❌ 恢复失败！错误信息："
+            echo -e "${C_GRAY}${tar_err}${C_RESET}"
+            pause 3
+        fi
+    else
+        echo -e "\n ❌ 未选择有效文件！"
+        pause
+    fi
+}
+
+set_toolkit() {
+    while true; do
+        clear
+        main_line
+        print_center "${C_BOLD}🔧 MIKIT • Mi-Toolkit 设置${C_RESET}" 3
+        sub_line
+
+        echo -e "  ${C_GREEN}1)${C_RESET} 🔄 检查版本更新"
+        echo -e "  ${C_GREEN}2)${C_RESET} 🌐 切换下载源站"
+        echo -e "  ${C_GREEN}3)${C_RESET} 🛠️ 创建应用模版"
+        echo -e "  ${C_GREEN}4)${C_RESET} 📋 查看运行日志"
+#        echo -e "  ${C_GREEN}4)${C_RESET} 💾 备份配置"
+#        echo -e "  ${C_GREEN}5)${C_RESET} 📥 恢复备份"
+        sub_line
+        echo -e "  ${C_RED}8)${C_RESET} 🧹 卸载应用"
+        echo -e "  ${C_RED}9)${C_RESET} 💥 卸载工具"
+        echo -e "  ${C_GRAY}0)${C_RESET} 🔙 返回"
+        main_line
+        printf " 👉 请选择 [${C_BOLD}0-9${C_RESET}]: "
+        read store_choice
+
+        case "$store_choice" in
+            1) toolkit_self_update ;;
+            2) set_download_mirror ;;
+            3) create_new_app ;;
+            4)
+              local logs="$(grep " mikit" /tmp/messages 2>/dev/null | tail -n 100)"
+
+              if [ -n "$logs" ]; then
+                  echo "$logs"
+              else
+                  print_center "🤹 ${C_NOR_YELLOW}暂无日志或已被系统清理${C_RESET}" 12
+              fi
+              pause
+              ;;
+#            4) backup_toolkit ;;
+#            5) restore_toolkit ;;
+            8) uninstall_installed_apps ;;
+            9) toolkit_uninstall ;;
+            0) break ;;
+            *)
+                echo -e "\n ❌ 无效选项，请重新输入！"
+                pause
+                ;;
+        esac
+    done
+}
+
+# https://cdn.jsdelivr.net/gh/maxiaof/github-hosts/hosts
+set_download_mirror() {
+    # 1. 预设镜像源集合 (格式: "显示名称|URL前缀")
+    # 扩展时只需在此处按格式新增一行即可
+    local mirrors_def="
+ghproxy.net|https://ghproxy.net/
+mirror.mikus.ink|https://mirror.mikus.ink/
+gh.996986.xyz|https://gh.996986.xyz/
+wget.la|https://wget.la/
+"
+    local last_count=0
+    while true; do
+        clear
+        main_line
+        print_center "🌐 设置 GitHub 下载镜像源" 8
+        echo -e "  当前使用的镜像源: ${MIRROR:-直连 (官方原源)}"
+        sub_line
+
+        echo -e "  ${C_GREEN}1)${C_RESET} 🐙 直连 (GitHub 官方原源)"
+
+        if [ "$last_count" -gt 0 ]; then
+            local i=1
+            while [ $i -le "$last_count" ]; do
+                unset "MIRROR_URL_${i}"
+                unset "MIRROR_NAME_${i}"
+                i=$((i + 1))
+            done
+        fi
+
+        local idx=2
+        for item in $mirrors_def; do
+            [ -z "$item" ] && continue
+            local m_name="${item%%|*}"
+            local m_url="${item#*|}"
+
+            echo -e "  ${C_GREEN}${idx})${C_RESET} 🔗 ${m_name}"
+            eval "MIRROR_URL_${idx}=\"$m_url\""
+            eval "MIRROR_NAME_${idx}=\"$m_name\""
+            idx=$((idx + 1))
+        done
+        last_count=$idx
+
+        local custom_idx=$idx
+        echo -e "  ${C_GREEN}${custom_idx})${C_RESET} 📝 手动输入自定义镜像 URL"
+
+        sub_line
+        echo -e "  ${C_GRAY}0)${C_RESET} 🔙  返回"
+        main_line
+        printf " 👉 请选择 [${C_BOLD}0-${custom_idx}${C_RESET}]: "
+        read m_choice
+
+        # 3. 分支逻辑处理
+        if [ "$m_choice" = "0" ]; then
+            break
+        elif [ "$m_choice" = "1" ]; then
+            mikit_db set "mirror" ""
+            MIRROR=""
+            echo -e "\n ✅ 已切换为官方直连！"
+            pause
+            break
+        elif [ "$m_choice" = "$custom_idx" ]; then
+            echo ""
+            echo -e " 💡 提示: 请输入完整的前缀 URL (例如: ${C_BLUE}https://gh.proxy.com/${C_RESET})"
+            printf " 🔗 请输入自定义镜像源地址: "
+            read custom_mirror
+
+            if [ -z "$custom_mirror" ]; then
+                echo -e "\n ${C_YELLOW}❌ 输入为空，已取消设置！${C_RESET}"
+                pause
+            else
+                mikit_db set "mirror" "$custom_mirror"
+                MIRROR="$custom_mirror"
+                echo -e "\n ✅ 已成功设置自定义镜像: ${custom_mirror}"
+                pause
+                break
+            fi
+        else
+            eval "local target_url=\$MIRROR_URL_${m_choice}"
+            eval "local target_name=\$MIRROR_NAME_${m_choice}"
+
+            if [ -n "$target_url" ]; then
+                mikit_db set "mirror" "$target_url"
+                MIRROR="$target_url"
+                echo -e "\n ✅ 已成功设置为 ${target_name} 镜像！${C_RESET}"
+                pause
+                break
+            else
+                echo -e "\n ❌ 输入无效，请重新选择！"
+                pause
+            fi
+        fi
+    done
+}
+
+show_menu() {
+    # 获取系统基础状态
+    CURRENT_VER=$(uci -c /usr/share/xiaoqiang get xiaoqiang_version.version.ROM 2>/dev/null || echo "Unknown")
+    HARDWARE=$(uci -c /usr/share/xiaoqiang get xiaoqiang_version.version.HARDWARE 2>/dev/null || echo "Unknown")
+    version_txt="v$MIKIT_VER"
+
+    local cnt="$(mikit_db get "up_count")"
+    while true; do
+        clear
+        main_line
+        print_center "${C_NOR_YELLOW}[No.${cnt:-?}]${C_RESET} ${C_BOLD}${C_GREEN}MIKIT • Mi-Toolkit${C_RESET} ${C_DIM}$version_txt${C_RESET}" # "$(( ${#version_txt} + 1 ))"
+        print_center "${C_NOR_PURPLE}https://github.com/Zakkoree/mi-router-tool${C_RESET}"
+        echo ""
+
+        echo -e " 📌 设备型号 : ${C_BLUE}$(printf '%-12.12s' "${HARDWARE}")${C_RESET}         💻 系统架构 : ${C_BLUE}$(printf '%-8.8s' "${SYSTEM_ARCH}")${C_RESET}"
+        echo -e " 🔖️ 固件版本 : ${C_BLUE}$(printf '%-12.12s' "${CURRENT_VER}")${C_RESET}         🔥 设备温度 : ${C_BLUE}$(printf '%-8.8s' "$(get_device_temp)")${C_RESET}"
+
+        sub_line
+        # 🌐 💾 📂🛒
+        echo -e "  ${C_GREEN}1)${C_RESET} 📦 管理应用"
+        echo -e "  ${C_GREEN}2)${C_RESET} 🏪 应用商店"
+        echo -e "  ${C_GREEN}3)${C_RESET} 💾 离线安装"
+        echo -e "  ${C_GREEN}4)${C_RESET} ⏰ 定时任务"
+        echo -e "  ${C_GREEN}5)${C_RESET} 🧭 dnsmasq"
+        echo -e "  ${C_GREEN}6)${C_RESET} 🌐 Nginx"
+        [ -f /etc/init.d/mi_docker ] && echo -e "  ${C_GREEN}8)${C_RESET} 🐳 Docker"
+        sub_line
+        echo -e "  ${C_GREEN}9)${C_RESET} 🔧 设置"
+        echo -e "  ${C_GRAY}0)${C_RESET} 🔙 退出"
+        main_line
+        printf " 👉 请选择 [${C_BOLD}0-9${C_RESET}]: "
+        read choice
+
+        case "$choice" in
+            1) list_installed_apps ;;
+            2) list_store_apps ;;
+            3) app_install_from_local ;;
+            4) cron_menu ;;
+            5) show_domain_menu ;;
+            6) nginx_menu ;;
+            8) [ -f /etc/init.d/mi_docker ] && docker_menu || { echo -e "\n ❌ 无效选项，请重新输入！"; pause; }  ;;
+            9) set_toolkit ;;
+            0) clear; exit 0 ;;
+            *)
+                echo -e "\n ❌ 无效选项，请重新输入！"
+                pause
+                ;;
+        esac
+    done
+}
+
+show_menu

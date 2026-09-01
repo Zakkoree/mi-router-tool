@@ -1,0 +1,276 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="\
+网络状态与信息:zt_status|\
+加入/离开网络:zt_network|\
+对等节点列表(Peers):zt_peers|\
+MOON/Planet节点管理:zt_moon|\
+防火墙转发规则管理:zt_firewall_menu"
+
+ZEROTIOER_CLI="zerotier-cli -D${APP_DATA_DIR}"
+refresh() { [ "$APP_STATUS" = "1" ] && APP_EXTRA_INFO=$(get_zt_networks) || APP_EXTRA_INFO=""; }
+# 重写 (Override) 覆盖基础方法   避免 zerotier-one 网卡 停止太久卡顿菜单操作  停止服务优化：秒杀进程以提升菜单响应速度
+stop()   { echo " 🛑 正在停止服务..."; killall -9 zerotier-one 2>/dev/null; "$APP_SCRIPT" stop; echo -e "\n ✅ 操作完成"; }
+# 获取 ZeroTier 网络列表与分配的 IP
+get_zt_networks() {
+    # 1. 检查 $ZEROTIOER_CLI 是否正常运行
+    local raw_json
+    raw_json=$($ZEROTIOER_CLI -j listnetworks 2>/dev/null | tr -d '\r')
+
+    # 2. 判断 JSON 是否为空或非法
+    if [ -z "$raw_json" ] || ! echo "$raw_json" | jq -e '. | length > 0' >/dev/null 2>&1; then
+        echo "未加入任何 ZeroTier 网络"
+        return 0
+    fi
+
+    # 3. 解析并输出结果
+    echo "$raw_json" | jq -r '.[] | " \(.id) : " + ((.assignedAddresses // []) | if length > 0 then join(", ") else "未分配" end)'
+}
+
+get_zt_status(){
+    if [ "$APP_STATUS" != "1" ]; then
+        echo -e " 🔴 服务状态: ZeroTier 未运行 (服务已停止)"
+        echo -e " 💡 提示: 请先启动 ZeroTier 服务后再查看状态。"
+        return 1
+    fi
+}
+
+# 1. 查看网络状态与分配的虚拟 IP
+zt_status() {
+    echo " 📊 【ZeroTier 运行状态与接口】"
+
+    ! get_zt_status && return
+
+    echo -e "\n--- 本地节点信息 ---"
+    if ! $ZEROTIOER_CLI info 2>/dev/null; then
+        echo -e "\n ❌ 无法连接到 ZeroTier Daemon (可能正在启动中或端口被占用)"
+        return 1
+    fi
+
+    echo -e "\n--- 已加入的网络列表 ---"
+    local raw_json
+    raw_json=$($ZEROTIOER_CLI -j listnetworks 2>/dev/null | tr -d '\r')
+
+    if [ -z "$raw_json" ] || ! echo "$raw_json" | jq -e '. | length > 0' >/dev/null 2>&1; then
+        echo " ❗ 当前未加入任何 ZeroTier 网络"
+        return 0
+    fi
+
+    echo "$raw_json" | jq -r '
+        .[] |
+        (
+            if .status == "OK" then "✅ 正常 (OK)"
+            elif .status == "ACCESS_DENIED" then "❌ 未授权 (ACCESS_DENIED)"
+            elif .status == "REQUESTING_CONFIGURATION" then "⏳ 请求配置中..."
+            elif .status == "NOT_FOUND" then "❗ 网络不存在 (NOT_FOUND)"
+            elif .status == "PORT_ERROR" then "🚫 端口冲突 (PORT_ERROR)"
+            elif .status == "CLIENT_TOO_OLD" then "🔝 客户端版本过旧"
+            else "❓ 未知状态(\(.status))"
+            end
+        ) as $status_text |
+        ((.assignedAddresses // []) | if length > 0 then join(", ") else "未分配" end) as $ip_text |
+        "ID: \(.id) | 状态: \($status_text) | 接口: \(.portDeviceName // "无") | IP: \($ip_text)"
+    '
+}
+
+# 2. 加入或离开虚拟网络 Network ID
+zt_network() {
+    ! get_zt_status && return
+    echo " 🌐 【加入 / 离开网络】"
+    echo " 1) 加入新网络 (Join)"
+    echo " 2) 离开已有网络 (Leave)"
+    read -p "请选择操作 [1-2]: " choice
+
+    case "$choice" in
+        1)
+            read -p "请输入 16 位 Network ID: " net_id
+            if ! echo "$net_id" | grep -qE '^[0-9a-fA-F]{16}$'; then
+                echo -e "\n ❌ 错误: Network ID 格式不正确，必须是 16 位十六进制字符！"
+                return 1
+            fi
+            echo " ⏳ 正在加入网络 [$net_id] ..."
+            local res
+            res=$($ZEROTIOER_CLI join "$net_id" 2>&1)
+
+            # 4. 判断执行结果
+            if echo "$res" | grep -q "200 join OK"; then
+                echo -e "\n ✅ 成功发起加入请求！"
+                echo " 💡 提示: 如果网络设为了 Private（私有），请前往 ZeroTier Central 控制台勾选 Auth 授权该设备。"
+                $APP_SCRIPT repair_arp
+                return 0
+            else
+                echo -e "\n ❌ 加入失败: $res"
+                return 1
+            fi
+            ;;
+        2)
+            read -p "请输入要c的 Network ID: " net_id
+            if [ -z "$net_id" ]; then
+                echo -e "\n ❌ 错误: 请提供 16 位的 Network ID！"
+                return 1
+            fi
+            if ! echo "$net_id" | grep -qE '^[0-9a-fA-F]{16}$'; then
+                echo -e "\n ❌ 错误: Network ID 格式不正确，必须是 16 位十六进制字符！"
+                return 1
+            fi
+            echo " ⏳ 正在离开网络: $net_id ..."
+            leave_output=$($ZEROTIOER_CLI leave "$net_id" 2>&1)
+
+            if echo "$leave_output" | grep -q "200 leave OK"; then
+                # 清理网络配置文件缓存（若存在）
+                [ -n "$zt_dir" ] && rm -f "$zt_dir/networks.d/$net_id"* 2>/dev/null
+
+                echo -e "\n ✅ 成功离开网络: $net_id"
+                $APP_SCRIPT repair_arp
+            else
+                echo -e "\n ❌ 离开网络失败！提示信息:\n$leave_output"
+                return 1
+            fi
+            ;;
+        *)
+            echo -e "\n ❗ 无效选项"
+            ;;
+    esac
+}
+
+zt_peers() {
+    ! get_zt_status && return
+    echo " 🔍 【对等节点 (Peers) 与连接状态】"
+    $ZEROTIOER_CLI listpeers
+}
+
+# MOON / Planet 节点管理（底层文件操作版）
+zt_moon() {
+    ! get_zt_status && return
+    echo " 🌙 【MOON / Planet 节点管理】"
+    echo " 1) 查看已加入的 Moon 节点"
+    echo " 2) 挂载 Moon 节点"
+    echo " 3) 删除已挂载的 Moon 节点"
+    read -r -p "请选择操作 [1-4]: " choice
+
+    local zt_dir="$APP_DATA_DIR"
+
+    case "$choice" in
+        1)
+            echo -e "\n 📋 已挂载的 Moon 列表:"
+            $ZEROTIOER_CLI listmoons 2>/dev/null
+            ;;
+        2)
+            echo -e "\n 提示: 可通过命令行直接挂载，或将 .moon 文件放入 moons.d 目录。"
+            read -r -p "请输入 Moon World ID (10位) 及 Seed IP (格式: <WorldID> <SeedIP>): " m_id m_ip
+
+            # 去除空格与换行符
+            m_id=$(echo "$m_id" | tr -d ' \r\n')
+            m_ip=$(echo "$m_ip" | tr -d ' \r\n')
+
+            # 1. 检查 World ID 是否为空
+            if [ -z "$m_id" ]; then
+                echo -e "\n ❌ 错误: Moon World ID 不能为空！"
+                return 1
+            fi
+
+            if ! echo "$m_id" | grep -iqE '^[0-9a-f]{10}$'; then
+                echo -e "\n ❌ 错误: 无效的 World ID！必须是由 10 位十六进制字符 (0-9, a-f) 组成的 ID。"
+                return 1
+            fi
+
+            if [ -n "$m_ip" ] && ! echo "$m_ip" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+                echo -e "\n ❌ 错误: IP 地址格式无效！请输入正确的 IPv4 地址 (例如: 1.2.3.4)。"
+                return 1
+            fi
+
+            echo " ⏳ 正在发起 Orbit 挂载请求..."
+            # 尝试命令行挂载
+            if [ -n "$m_ip" ]; then
+                $ZEROTIOER_CLI orbit "$m_id" "$m_ip"
+            else
+                $ZEROTIOER_CLI orbit "$m_id" "$m_id"
+            fi
+
+            echo -e "\n ✅ 命令已发送！若未成功挂载，请将服务端的 000000${m_id}.moon 文件直接放入:\n   $zt_dir/moons.d/"
+            ;;
+        3)
+            echo ""
+            read -r -p "请输入要删除的 10 位 Moon World ID (或文件名中的前缀): " m_id
+            m_id=$(echo "$m_id" | tr -d ' \r\n')
+
+            if [ -z "$m_id" ]; then
+                echo -e "\n ❌ 错误: World ID 不能为空！"
+                return 1
+            fi
+
+            if ! echo "$m_id" | grep -iqE '^[0-9a-f]{10}$'; then
+                echo -e "\n ❌ 错误: 无效的 World ID！必须是由 10 位十六进制字符 (0-9, a-f) 组成的 ID。"
+                return 1
+            fi
+
+            echo -e " ⏳ 正在离开 Moon 节点: $m_id ..."
+
+            deorbit_output=$($ZEROTIOER_CLI deorbit "$m_id" 2>&1)
+            if echo "$deorbit_output" | grep -q "200 deorbit OK"; then
+                echo -e "\n ✅ 成功离开 Moon 节点 [$m_id]！"
+                $APP_SCRIPT repair_arp
+            else
+                echo -e "\n ❌ 离开失败！提示信息:\n$deorbit_output"
+                return 1
+            fi
+            ;;
+        *)
+            echo -e "\n ❗ 无效选项"
+            ;;
+    esac
+}
+
+
+# 防火墙转发与 NAT 伪装一键管理菜单
+zt_firewall_menu() {
+    # 动态检测当前 UCI 防火墙配置状态
+    local is_forward is_masq f_status m_status
+    is_forward=$(uci get firewall.zerotier 2>/dev/null)
+    is_masq=$(uci get firewall.zerotier.masq 2>/dev/null)
+
+    [ "$is_forward" = "zone" ] && f_status="\e[1;32m已启用\e[0m" || f_status="\e[1;31m未启用\e[0m"
+    [ "$is_masq" = "1" ] && m_status="\e[1;32m已开启\e[0m" || m_status="\e[1;33m已关闭\e[0m"
+
+    echo -e " 🧱 ZeroTier 防火墙转发规则管理"
+    echo -e "   当前双向转发状态: [$f_status]"
+    echo -e "   当前地址伪装(NAT): [$m_status]"
+    echo "-------------------------------------------"
+    echo " 1) 开启双向转发规则 (建立 Zone)"
+    echo " 2) 关闭/清理转发规则"
+    echo " 3) 开关 NAT 地址伪装 (MASQ)"
+    read -r -p "请选择操作 [1-2]: " choice
+
+    case "$choice" in
+        1)
+            echo -e "\n ⏳ 正在配置完整互通规则..."
+            "$APP_SCRIPT" setup_zone
+            echo -e "\n ✅ 完整互通规则已生效"
+            ;;
+        2)
+            echo -e "\n ⏳ 正在清理 ZeroTier 所有防火墙规则..."
+            "$APP_SCRIPT" remove_zone
+            echo -e "\n ✅ 已成功卸载 ZeroTier 防火墙规则！"
+            ;;
+        3)
+            if [ "$is_forward" != "zone" ] ; then
+                echo " ❌ 请先开启转发规则 ..."
+                return 1
+             elif [ "$is_masq" = "1" ]; then
+                echo "⏳ 正在关闭地址伪装 (MASQ) ..."
+                uci set firewall.zerotier.masq='0'
+                echo -e "\n✅ MASQ 地址伪装已关闭！"
+            else
+                echo "⏳ 正在开启地址伪装 (MASQ) ..."
+                [ "$is_forward" != "zone" ] && uci set firewall.zerotier=zone
+                uci set firewall.zerotier.masq='1'
+                echo -e "\n✅ MASQ 地址伪装已开启！"
+            fi
+            uci commit firewall
+            /etc/init.d/firewall reload >/dev/null 2>&1
+            ;;
+        *)
+            echo -e "\n ❗ 无效选项"
+            ;;
+    esac
+}

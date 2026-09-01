@@ -1,0 +1,202 @@
+# ---------------------------------------------------------------
+# MetaCubeX (Mihomo) 模版
+# ---------------------------------------------------------------
+mixed-port: 7890
+port: 0
+socks-port: 0
+tproxy-port: 17893
+redir-port: 17894
+mode: rule
+ipv6: true
+log-level: warning
+unified-delay: true
+tcp-concurrent: true
+keep-alive-interval: 30
+keep-alive-idle: 60
+disable-keep-alive: false
+find-process-mode: off
+external-ui: ui
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+external-ui-download-detour: true
+external-controller: 0.0.0.0:9099
+secret: "123456"
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+allow-lan: true
+bind-address: '*'
+
+tun:
+  enable: false
+
+hosts:
+  "miwifi.com": 127.0.0.1
+  "www.miwifi.com": 127.0.0.1
+  "router.miwifi.com": 127.0.0.1
+
+dns:
+  enable: true
+  ipv6: true
+  listen: 0.0.0.0:5353
+  cache-algorithm: arc
+  dns-cache-size: 1024
+  use-hosts: true
+  use-system-hosts: false
+  prefer-h3: false
+  default-nameserver:
+    - system
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - 8.8.8.8
+    - 1.1.1.1
+  proxy-server-nameserver:
+    - dhcp://system
+    - 223.5.5.5
+    - 119.29.29.29
+  respect-rules: false
+  direct-nameserver:
+    - dhcp://system
+    - 223.5.5.5
+    - 119.29.29.29
+  direct-nameserver-follow-policy: true
+  nameserver-policy:
+    "+.cloudflaregateway.com": "system"
+    "+.cloudflareclient.com": "system"
+    "geosite:private": "system"
+    "geosite:fakeip-filter": "system"
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-range6: fd00:a4c5:9b12:d3f8::/96
+  fake-ip-filter-mode: rule
+  fake-ip-filter:
+    - GEOSITE,private,real-ip
+    - GEOSITE,trackerslist,real-ip
+    - GEOSITE,fakeip-filter,real-ip
+    - GEOSITE,cn,real-ip
+    - MATCH,fake-ip
+
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: true
+  sniff:
+    QUIC:
+      ports: [443, 8443]
+    TLS:
+      ports: [443, 8443]
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+  skip-dst-address:
+    - "geoip:private"
+    - "geoip:cn"
+  skip-domain:
+    - "geosite:private"
+    - "geosite:cn"
+    - "geosite:trackerslist"
+    - "geosite:fakeip-filter"
+
+# ========================= 节点配置 =========================
+proxies:
+  - name: "⚡ 直连出口"
+    type: direct
+
+  - name: "🇭🇰 示例 01"
+    type: vless
+    server: "hk.example.com"
+    port: 443
+    uuid: "00000000-0000-0000-0000-000000000000"
+    tls: true
+    skip-cert-verify: false
+    servername: "hk.example.com"
+    network: ws
+    ws-opts: { path: "/about", headers: { host: "hk.example.com" } }
+
+  - name: "🇭🇰 示例 02"
+    type: vless
+    server: "hk.example.com"
+    port: 443
+    uuid: "00000000-0000-0000-0000-000000000000"
+    tls: true
+    skip-cert-verify: false
+    servername: "hk.example.com"
+    network: ws
+    ws-opts: { path: "/about", headers: { host: "hk.example.com" } }
+
+# ========================= 策略分组 =========================
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - 🔄 自动测速
+      - "🇭🇰 示例 01"
+      - "🇭🇰 示例 02"
+      - ⚡ 直连出口
+
+  - name: 🔄 自动测速
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 100
+    timeout: 6000
+    lazy: false
+    proxies:
+      - "🇭🇰 示例 01"
+      - "🇭🇰 示例 02"
+
+  - {name: 📈 网络测试, type: select, proxies: [🚀 节点选择, ⚡ 直连出口]}
+  - {name: 🚫 广告过滤, type: select, proxies: [🟢 启用过滤, 🔴 关闭过滤]}
+  - {name: 🇨🇳 国内站点, type: select, proxies: [⚡ 直连出口, 🚀 节点选择]}
+  - {name: 🌍 国际站点, type: select, proxies: [🚀 节点选择, ⚡ 直连出口]}
+  - {name: 🪟 微软服务, type: select, proxies: [⚡ 直连出口, 🚀 节点选择]}
+  - {name: 📱 苹果服务, type: select, proxies: [⚡ 直连出口, 🚀 节点选择]}
+  - {name: 🐟 漏网之鱼, type: select, proxies: [🚀 节点选择, ⚡ 直连出口]}
+  - {name: 🟢 启用过滤, type: select, proxies: [REJECT], hidden: true}
+  - {name: 🔴 关闭过滤, type: select, proxies: [PASS], hidden: true}
+  - {name: 🔒 私有网络, type: select, proxies: [⚡ 直连出口], hidden: true}
+
+geodata-mode: true
+geox-auto-update: true
+geox-update-interval: 168
+geox-url:
+  geosite: "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@mihomo-geodata/geosite.dat"
+  geoip: "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@mihomo-geodata/geoip-lite.dat"
+
+# ========================= 规则列表 =========================
+rules:
+  - GEOIP,private,🔒 私有网络,no-resolve
+  - GEOSITE,private,🔒 私有网络,no-resolve
+  - GEOSITE,ads,🚫 广告过滤,no-resolve
+  - GEOSITE,fakeip-filter,⚡ 直连出口,no-resolve
+  - GEOSITE,trackerslist,⚡ 直连出口,no-resolve
+  - DOMAIN-SUFFIX,bing.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,bing.net,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,mm.bing.net,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,edge.microsoft.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,storage.live.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,update.microsoft.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,windowsupdate.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,login.live.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,auth.microsoft.com,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,msedge.net,🪟 微软服务,no-resolve
+  - DOMAIN-SUFFIX,msftconnecttest.com,🪟 微软服务,no-resolve
+  - GEOSITE,microsoft-cn,🪟 微软服务,no-resolve
+  - GEOSITE,apple-cn,📱 苹果服务,no-resolve
+  - GEOSITE,games-cn,🇨🇳 国内站点,no-resolve
+  - GEOSITE,networktest,📈 网络测试,no-resolve
+  - GEOSITE,ai,🚀 节点选择,no-resolve
+  - GEOSITE,google-cn,🚀 节点选择,no-resolve
+  - GEOSITE,gfw,🚀 节点选择,no-resolve
+  - GEOSITE,proxy,🌍 国际站点,no-resolve
+  - GEOSITE,tld-proxy,🌍 国际站点,no-resolve
+  - GEOSITE,games,🌍 国际站点,no-resolve
+  - GEOSITE,cn,🇨🇳 国内站点,no-resolve
+
+  - GEOIP,telegram,🚀 节点选择,no-resolve
+  - GEOIP,cn,🇨🇳 国内站点,no-resolve
+
+  - MATCH,🐟 漏网之鱼

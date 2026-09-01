@@ -1,0 +1,192 @@
+#!/bin/sh
+. "$MIKIT_DIR/core/env.sh"
+
+initscript="$1"
+
+if [ -z "$initscript" ] || [ ! -f "$initscript" ]; then
+    echo -e "\n ❌ 错误: 未找到控制脚本 -> '$initscript'"
+    exit 1
+fi
+
+APP_DIR="$(cd "${initscript%/*}" && pwd)"
+APP_ID="${APP_DIR##*/}"
+APP_DATA_DIR="$MIKIT_DATA_DIR/apps_data/$APP_ID"
+APP_SCRIPT="$APP_DIR/$APP_ID"
+
+APP_AUTHOR=$(mikit_db get "author")
+APP_DESC=$(mikit_db get "desc")
+APP_NAME=$(mikit_db get "name")
+APP_VERSION=$(mikit_db get "version")
+APP_URL=$(mikit_db get "url")
+APP_SOURCE_ID=$(mikit_db get "source_id")
+
+APP_STATUS=0
+
+OPTIONS=""
+APP_EXTRA_INFO=""
+refresh() { return 0; }
+start_verify() { return 0; }
+
+start() {
+    loginfo " 🚀 启动 [$APP_ID] 服务..."
+    if ! start_verify; then
+        logerr -e "\n ❌ 启动 [$APP_ID] 服务失败，校验不通过！"
+        return 1
+    fi
+    "$APP_SCRIPT" start
+    echo -e "\n ✅ 操作完成"
+}
+
+stop() {
+    loginfo " 🛑 停止 [$APP_ID] 服务..."
+    "$APP_SCRIPT" stop
+    echo -e "\n ✅ 操作完成"
+}
+
+status() {
+    [ "$APP_STATUS" = "1" ] && echo "${C_GREEN}▶${C_RESET}" || echo "${C_RED}■${C_RESET}"
+}
+
+auto_start_status() {
+    [ "${CACHED_START:-0}" = "1" ] && echo "${C_GREEN}✔${C_RESET}" || echo "${C_RED}✖${C_RESET}"
+}
+
+set_auto_start_priority() {
+    echo " 💡 说明: 数字越小，开机启动优先级越高（例如: 10 优先于 90）"
+    printf " 请输入优先级数字 (1-99) [默认: 99]: "
+    read -r priority
+    priority="${priority:-99}"
+
+    case "$priority" in
+        *[!0-9]*)
+            echo -e "\n ❌ 输入无效，请输入有效数字！"
+            return 1
+            ;;
+    esac
+
+    if [ "$priority" -le 0 ] || [ "$priority" -ge 100 ]; then
+        echo -e "\n ❌ 数字超出范围！请输入 1 到 99 之间的有效数字。"
+        return 1
+    fi
+    mikit_db set "priority" "$priority"
+    CACHED_PRIORITY="$priority"
+    echo -e "\n ✅ 自启优先级已设置为: $priority"
+}
+
+. "$initscript"
+
+refresh_common() {
+    APP_STATUS=0
+    if [ -x "$APP_SCRIPT" ] && "$APP_SCRIPT" status >/dev/null 2>&1; then
+        APP_STATUS=1
+    fi
+    CACHED_START="$(mikit_db get "start" 2>/dev/null)"
+    CACHED_PRIORITY="$(mikit_db get "priority" 2>/dev/null)"
+    refresh
+}
+
+set_auto_start() {
+    read -r -p "是否开机自动启动？(y/N) " confirm
+    case "$confirm" in
+        y|Y)
+            mikit_db set "start" "1"
+            CACHED_START="1"
+            echo -e "\n ✅ 开机自启已开启。"
+            ;;
+        *)
+            mikit_db set "start" "0"
+            CACHED_START="0"
+            echo -e "\n ❌ 开机自启已关闭。"
+            ;;
+    esac
+}
+
+uninstall() {
+    if uninstall_app "$APP_ID"; then
+        pause
+        break
+    fi
+}
+
+draw_menu() {
+    local base_options="启动服务:start|停止服务:stop|开机自启:set_auto_start|自启优先:set_auto_start_priority"
+    local tail_options="卸载应用:uninstall"
+    local raw_options
+    if [ -n "$OPTIONS" ]; then
+        raw_options="${base_options}|${OPTIONS}|${tail_options}"
+    else
+        raw_options="${base_options}|${tail_options}"
+    fi
+
+    local old_ifs="$IFS"
+    IFS='|'
+    local total_count=0
+    for item in $raw_options; do
+        [ -z "$item" ] && continue
+        total_count=$((total_count + 1))
+        eval "MENU_LABEL_${total_count}=\"${item%%:*}\""
+        eval "MENU_CMD_${total_count}=\"${item#*:}\""
+    done
+    IFS="$old_ifs"
+
+    while true; do
+        clear
+        refresh_common
+        main_line
+        print_center "📦 ${C_YELLOW}${APP_NAME:-$APP_ID}${C_RESET}" 1
+        print_center "${C_DIM}${APP_ID}${C_RESET} ${C_DIM}(v$APP_VERSION)${C_RESET}"
+
+        local prio="${CACHED_PRIORITY:-99}"
+        [ "${#prio}" -eq 1 ] && prio="0$prio"
+
+        print_center "状态: $(status)    自启: $(auto_start_status)    优先级: ${C_NOR_CYAN}${prio}${C_RESET}" 9
+#        echo -e " 👤 作者: ${C_NOR_PURPLE}${APP_AUTHOR}${C_RESET}"
+        echo -e " 📝 简介: ${APP_DESC}"
+        [ -n "$APP_URL" ] && echo -e " 🔗 链接: ${C_NOR_BLUE}${APP_URL}${C_RESET}"
+        [ -n "$APP_EXTRA_INFO" ] && echo -e "\n${APP_EXTRA_INFO}"
+        sub_line
+
+        local idx=1
+        while [ "$idx" -le "$total_count" ]; do
+            eval "local label=\$MENU_LABEL_${idx}"
+            local formatted_idx="$idx"
+            [ "$idx" -lt 10 ] && formatted_idx="0$idx"
+            echo -e "  ${C_GREEN}${formatted_idx})${C_RESET} ${label}"
+            idx=$((idx + 1))
+        done
+
+        echo -e "  ${C_GRAY}00)${C_RESET} 返回"
+        main_line
+        read -r -p " 👉 请选择 [0-${total_count}]: " input
+
+        case "$input" in
+            ''|*[!0-9]*)
+                echo -e "\n ❌ 输入无效，请输入有效数字！"
+                pause
+                continue
+                ;;
+        esac
+
+        local clean_input="$input"
+        case "$clean_input" in
+            0|00|00) clean_input="0" ;;
+            0*) clean_input="${clean_input#0}" ;;
+        esac
+
+        if [ "$clean_input" = "0" ]; then
+            return 0
+        fi
+
+        if [ "$clean_input" -ge 1 ] && [ "$clean_input" -le "$total_count" ] 2>/dev/null; then
+            eval "local target_cmd=\$MENU_CMD_${clean_input}"
+            echo ""
+            eval "$target_cmd"
+            pause
+        else
+            echo -e "\n ❌ 无此选项，请重新输入！"
+            pause
+        fi
+    done
+}
+
+draw_menu

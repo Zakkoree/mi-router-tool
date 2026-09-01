@@ -1,0 +1,282 @@
+{
+  "log": {
+    "level": "warn",
+    "timestamp": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "store_fakeip": true,
+      "path": "cache.db",
+      "store_rdrc": true
+    },
+    "clash_api": {
+      "external_controller": "0.0.0.0:9099",
+      "external_ui": "ui",
+      "secret": "123456",
+      "external_ui_download_url": "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip",
+      "external_ui_download_detour": "🚀 节点选择",
+      "access_control_allow_origin": [ "*" ]
+    }
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "hosts-server",
+        "type": "hosts",
+        "predefined": {
+          "miwifi.com": "127.0.0.1",
+          "router.miwifi.com": "127.0.0.1",
+          "www.miwifi.com": "127.0.0.1"
+        }
+      },
+      {
+        "tag": "remote",
+        "type": "udp",
+        "server": "8.8.8.8",
+        "detour": "🚀 节点选择"
+      },
+      {
+        "tag": "direct",
+        "type": "local"
+      },
+      {
+        "tag": "fakeip",
+        "type": "fakeip",
+        "inet4_range": "198.18.0.0/16",
+        "inet6_range": "fd00:a4c5:9b12:d3f8::/96"
+      }
+    ],
+    "rules": [
+      {
+        "domain": [
+          "miwifi.com",
+          "www.miwifi.com",
+          "router.miwifi.com"
+        ],
+        "server": "hosts-server"
+      },
+      { "clash_mode": "Direct", "server": "direct" },
+      { "clash_mode": "Global", "server": "remote" },
+      {
+        "rule_set": [ "private", "privateip", "fakeip-filter", "cn", "microsoft-cn", "apple-cn" ],
+        "server": "direct"
+      },
+      {
+        "rule_set": [ "gfw", "tld-proxy" ],
+        "server": "fakeip"
+      },
+      { "query_type": [ "A", "AAAA" ], "server": "fakeip" }
+    ],
+    "strategy": "prefer_ipv4",
+    "final": "remote"
+  },
+  "inbounds": [
+    { "type": "direct", "tag": "dns-in", "listen": "0.0.0.0", "listen_port": 5353 },
+    { "type": "mixed", "listen": "0.0.0.0", "listen_port": 7890 }
+  ],
+  "outbounds": [
+    {
+      "tag": "🚀 节点选择",
+      "type": "selector",
+      "outbounds": [ "♻️ 自动选择", "🇭🇰 示例 01", "🇯🇵 日本 01", "🇺🇸 美国 01", "⚡ 直连出口" ]
+    },
+    {
+      "tag": "♻️ 自动选择",
+      "type": "urltest",
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "5m",
+      "tolerance": 50,
+      "outbounds": [ "🇭🇰 示例 01", "🇯🇵 日本 01", "🇺🇸 美国 01" ]
+    },
+    { "tag": "📈 网络测速", "type": "selector", "outbounds": [ "🚀 节点选择", "⚡ 直连出口"] },
+    { "tag": "🤖 AI 服务", "type": "selector", "outbounds": [ "🚀 节点选择", "⚡ 直连出口" ] },
+    { "tag": "🇨🇳 国内站点", "type": "selector", "outbounds": [ "⚡ 直连出口", "🚀 节点选择" ] },
+    { "tag": "🌍 国际站点", "type": "selector", "outbounds": [ "🚀 节点选择", "⚡ 直连出口" ] },
+    { "tag": "🪟 微软服务", "type": "selector", "outbounds": [ "⚡ 直连出口", "🚀 节点选择" ] },
+    { "tag": "📱 苹果服务", "type": "selector", "outbounds": [ "⚡ 直连出口", "🚀 节点选择" ] },
+    { "tag": "🐟 漏网之鱼", "type": "selector", "outbounds": [ "🚀 节点选择", "⚡ 直连出口" ] },
+
+    { "tag": "⚡ 直连出口", "type": "direct" },
+    { "tag": "GLOBAL", "type": "selector", "outbounds": [ "🚀 节点选择", "⚡ 直连出口" ] },
+
+    {
+      "type": "vless",
+      "tag": "🇭🇰 示例 01",
+      "server": "hk.example.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "tls": { "enabled": true, "server_name": "hk.example.com" }
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "🇯🇵 日本 01",
+      "server": "jp.example.com",
+      "server_port": 8388,
+      "method": "aes-256-gcm",
+      "password": "your_password"
+    },
+    {
+      "type": "hysteria2",
+      "tag": "🇺🇸 美国 01",
+      "server": "us.example.com",
+      "server_port": 443,
+      "password": "your_password",
+      "tls": { "enabled": true, "server_name": "us.example.com", "insecure": true }
+    }
+  ],
+  "route": {
+    "default_domain_resolver": { "server": "direct" },
+    "auto_detect_interface": true,
+
+    "rules": [
+      { "rule_set": [ "private", "privateip" ], "outbound": "⚡ 直连出口" },
+      { "protocol": "dns", "action": "hijack-dns" },
+      {
+        "action": "sniff",
+        "sniffer": [ "http", "tls", "quic" ],
+        "timeout": "300ms"
+      },
+      { "rule_set": [ "ads" ], "action": "reject" },
+
+      { "rule_set": [ "applications" ], "outbound": "⚡ 直连出口" },
+      { "rule_set": [ "ai" ], "outbound": "🤖 AI 服务" },
+      {
+        "domain_suffix": [
+          "bing.com",
+          "bing.net",
+          "mm.bing.net",
+          "edge.microsoft.com",
+          "storage.live.com",
+          "update.microsoft.com",
+          "windowsupdate.com",
+          "login.live.com",
+          "auth.microsoft.com",
+          "msedge.net",
+          "msftconnecttest.com"
+        ],
+        "outbound": "🪟 微软服务"
+      },
+      { "rule_set": [ "microsoft-cn" ], "outbound": "🪟 微软服务" },
+      { "rule_set": [ "apple-cn" ], "outbound": "📱 苹果服务" },
+      { "rule_set": [ "networktest" ], "outbound": "📈 网络测速" },
+      { "rule_set": [ "cn", "cnip" ], "outbound": "🇨🇳 国内站点" },
+      { "rule_set": [ "gfw", "tld-proxy", "telegramip" ], "outbound": "🌍 国际站点" }
+    ],
+    "rule_set": [
+      {
+        "tag": "fakeip-filter",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/fakeip-filter.srs"
+      },
+      {
+        "tag": "ads",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/ads.srs"
+      },
+      {
+        "tag": "private",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/private.srs"
+      },
+      {
+        "tag": "applications",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/applications.srs"
+      },
+      {
+        "tag": "microsoft-cn",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/microsoft-cn.srs"
+      },
+      {
+        "tag": "apple-cn",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/apple-cn.srs"
+      },
+      {
+        "tag": "ai",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/ai.srs"
+      },
+      {
+        "tag": "networktest",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/networktest.srs"
+      },
+      {
+        "tag": "tld-proxy",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/tld-proxy.srs"
+      },
+      {
+        "tag": "gfw",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/gfw.srs"
+      },
+      {
+        "tag": "cn",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/cn.srs"
+      },
+      {
+        "tag": "privateip",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/privateip.srs"
+      },
+      {
+        "tag": "cnip",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/cnip.srs"
+      },
+      {
+        "tag": "telegramip",
+        "type": "remote",
+        "format": "binary",
+        "update_interval": "7d",
+        "download_detour": "⚡ 直连出口",
+        "url": "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@sing-box-ruleset/telegramip.srs"
+      }
+    ],
+    "final": "🐟 漏网之鱼"
+  }
+}

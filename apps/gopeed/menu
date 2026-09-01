@@ -1,0 +1,46 @@
+#!/bin/sh /etc/mk.menu.common
+
+OPTIONS="修改端口:edit_port|修改密码:edit_credentials|修改APIToken:edit_token"
+refresh() { APP_EXTRA_INFO=$(show_conf); }
+
+show_conf() {
+    local port username password apitoken
+    port=$(get_jsonfile_val "$APP_DATA_DIR/config.json" "port")
+    username=$(get_jsonfile_val "$APP_DATA_DIR/config.json" "username")
+    password=$(get_jsonfile_val "$APP_DATA_DIR/config.json" "password")
+    apitoken=$(get_jsonfile_val "$APP_DATA_DIR/config.json" "apiToken")
+    echo " 🔹 Port    : ${port:-9999}\n 🔹 Username: ${username:-gopeed}\n 🔹 Password: ${password:-关闭}\n 🔹 APIToken: ${apitoken:-关闭}"
+}
+
+edit_port() {
+    read -r -p "请输入新的 Port: " new_port
+    [ -z "$new_port" ] && { echo -e "\n ❗ 未输入，保持不变"; return; }
+    if ! echo "$new_port" | grep -q '^[0-9]\+$'; then
+        echo -e "\n ❗ 端口号必须是纯数字！"
+        return 1
+    fi
+
+    if [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; then
+        echo -e "\n ❗ 端口号必须在 1 到 65535 之间！"
+        return 1
+    fi
+    sed -i "s/\(\"port\"[[:space:]]*:[[:space:]]*\)[0-9]*/\1$new_port/" "$APP_DATA_DIR/config.json"
+    [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" restart
+    echo -e "\n ✅ 端口已更新！"
+}
+
+edit_credentials() {
+    read -r -p "请输入新的 Password(回车关闭账户验证): " new_password
+    safe_pwd=$(echo "$new_password" | sed 's/[\/&]/\\&/g')
+    sed -i "s/\(\"password\"[[:space:]]*:[[:space:]]*\"\)[^\"]*\(\"\)/\1$safe_pwd\2/" "$APP_DATA_DIR/config.json"
+    [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" restart
+    echo -e "\n ✅ 密码已更新！"
+}
+
+edit_token() {
+    read -r -p "请输入新的 APIToken: " new_apitoken
+    safe_token=$(echo "$new_apitoken" | sed 's/[\/&]/\\&/g')
+    sed -i "s/\(\"apiToken\"[[:space:]]*:[[:space:]]*\"\)[^\"]*\(\"\)/\1$safe_token\2/" "$APP_DATA_DIR/config.json"
+    [ "$APP_STATUS" = "1" ] && "$APP_SCRIPT" restart
+    echo -e "\n ✅ API Token 已更新！"
+}

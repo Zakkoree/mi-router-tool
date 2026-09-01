@@ -1,0 +1,22 @@
+#!/bin/sh
+
+uuid=$(uci -q get mi_docker.settings.device_uuid)
+[ -z "$uuid" ] || [ -z "$DEVICE" ] || [ -z "$MOUNTPATH" ] && exit 0
+if [ "$ACTION" = "add" ]; then
+  if storage uuid "$DEVICE" | grep -sqx "$uuid"; then
+    ! grep -sqx boot_done /tmp/boot_check_done && exit 0
+    logger -t "mikit[$$]" "hotplug USB inspect"
+    USB_PATH=$(storage dump 2>/dev/null | grep -C3 "${uuid:-invalid-uuid}" | grep target: | awk '{print $2}')
+    if [ -z "$USB_PATH" ]; then
+      logger -t "mikit[$$]" "hotplug 未检测到可用的 USB 设备"
+      return 1
+    fi
+    CURRENT_LINK=$(readlink /data/usb)
+    if [ "$CURRENT_LINK" != "$USB_PATH" ]; then
+      logger -t "mikit[$$]" "hotplug updating symlink: /data/usb -> $USB_PATH"
+      rm -f /data/usb && ln -sf "$USB_PATH" /data/usb
+    fi
+  fi
+elif [ "$ACTION" = "remove" ]; then
+        :
+fi

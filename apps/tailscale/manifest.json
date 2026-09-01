@@ -1,0 +1,10 @@
+{
+  "id": "tailscale",
+  "name": "Tailscale",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "虚拟局域网组网工具(依赖 Entware)",
+  "icon": "https://tailscale.com/favicon.svg",
+  "url": "https://tailscale.com"
+}

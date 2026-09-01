@@ -1,0 +1,10 @@
+{
+  "id": "minidlna",
+  "name": "MiniDLNA",
+  "version": "1.0.0",
+  "author": "Zakkoree",
+  "arch": "all",
+  "desc": "极其轻量 DLNA / UPnP-AV 媒体服务器(依赖 Entware)",
+  "icon": "https://minidlna.com/assets/images/favicon.svg",
+  "url": "https://minidlna.com"
+}
