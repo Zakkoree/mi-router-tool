@@ -99,7 +99,8 @@
       "author": "Zakkoree",
       "arch": "arm64",
       "desc": "轻量级高性能下载管理器管理器",
-      "url": "https://github.com/Zakkoree/mi-router-tool"
+      "icon": "https://gopeed.com/_next/image?url=%2Fimages%2Flogo.png&w=640&q=75",
+      "url": "https://gopeed.com"
     },
     {
       "id": "minidlna",
