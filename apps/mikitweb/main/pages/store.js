@@ -123,7 +123,7 @@ function buildModalHtml() {
                 <!-- 源地址信息 -->
                 <div id="modalStoreUrlWrapper" class="space-y-1">
                     <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                        应用源码
+                        应用地址
                     </label>
                     <div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200/70 rounded-xl hover:border-slate-300 transition">
                         <div class="flex items-center gap-2 min-w-0 flex-1">
