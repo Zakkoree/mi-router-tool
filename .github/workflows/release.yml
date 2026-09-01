@@ -1,0 +1,32 @@
+name: Auto Create Release
+
+on:
+  push:
+    tags:
+      - '*.*.*'       # 匹配任意 x.x.x 格式（如 1.0.28）
+      - '*.*.*-*'     # 匹配预发布格式（如 1.0.28-rc1）
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Artifacts
+        run: |
+          mkdir -p dist
+          tar -czvf dist/mikit.tar.gz --exclude='.git*' mikit
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: |
+            dist/mikit.tar.gz
