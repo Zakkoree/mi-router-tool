@@ -16,6 +16,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Update MIKIT_VER in env.sh
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          echo "Updating MIKIT_VER to ${VERSION} in mikit/core/env.sh..."
+          
+          # 检查文件是否存在
+          if [ -f "mikit/core/env.sh" ]; then
+            # 使用 sed 匹配并替换 MIKIT_VER="xxx" 行
+            sed -i "s/^MIKIT_VER=\".*\"/MIKIT_VER=\"${VERSION}\"/" mikit/core/env.sh
+          else
+            echo "::error::File mikit/core/env.sh not found!"
+            exit 1
+          fi
+
       - name: Build Artifacts
         run: |
           mkdir -p dist
@@ -26,7 +41,8 @@ jobs:
         with:
           name: ${{ github.ref_name }}
           draft: false
-          prerelease: false
+          # 如果 tag 中包含 '-' 字符（如 1.0.28-rc1），自动标记为预发布版本 (prerelease)
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: false
           files: |
             dist/mikit.tar.gz
