@@ -214,7 +214,7 @@ show_domain_menu() {
 
         sub_line
         echo -e "  ${C_RED}7)${C_RESET} 🧹 清理 GitHub 规则"
-        echo -e "  ${C_RED}8)${C_RESET} ❌ 移除单条规则"
+        echo -e "  ${C_RED}8)${C_RESET} ➖ 移除单条规则"
         echo -e "  ${C_RED}9)${C_RESET} 🚨 清空所有规则"
         echo -e "  ${C_GRAY}0)${C_RESET} 🔙 返回"
         main_line
@@ -282,7 +282,7 @@ show_domain_menu() {
                         dns_clear_github
                         echo -e "\n ✅ 清理 GitHub 规则完成！"
                         ;;
-                    *) echo "已取消。" ;;
+                    *) echo "\n 🚫 已取消操作" ;;
                 esac
                 pause
                 ;;
@@ -301,7 +301,7 @@ show_domain_menu() {
                         dns_clear_all
                         echo -e "\n ✅ 所有规则已清空！"
                         ;;
-                    *) echo -e "\n已取消清空。" ;;
+                    *) echo -e "\n 🚫 已取消操作" ;;
                 esac
                 pause
                 ;;

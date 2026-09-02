@@ -343,7 +343,7 @@ nginx_menu() {
                         echo "正在清除所有 Nginx 站点规则..."
                         nginx_clear_all
                         ;;
-                    *) echo -e "\n已取消清空。" ;;
+                    *) echo -e "\n 🚫 已取消操作。" ;;
                 esac
                 pause
                 ;;

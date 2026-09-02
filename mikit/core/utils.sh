@@ -328,7 +328,7 @@ uninstall_app() {
         fi
         echo -e "\n ✅ 卸载完成！"
     else
-        echo -e "\n ❌ 已取消删除操作。"
+        echo -e "\n 🚫 已取消操作。"
         return 1
     fi
 }

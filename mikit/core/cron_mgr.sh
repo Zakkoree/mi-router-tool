@@ -16,7 +16,7 @@ _validate_cron_expr() {
     local expr="$1"
     local count=$(echo "$expr" | awk '{print NF}')
     if [ "$count" -ne 5 ]; then
-        echo -e "\n ${C_RED}❌ Cron 表达式必须包含 5 个部分（分 时 日 月 周），当前有 $count 个${C_RESET}"
+        echo -e "\n ❌ Cron 表达式必须包含 5 个部分（分 时 日 月 周），当前有 $count 个"
         return 1
     fi
     return 0
@@ -108,7 +108,7 @@ cron_set_task() {
     local config_dir="${CONFIG_DIR:-$_UCI_CONFIG_DIR}"
 
     if [ -z "$task_id" ] || [ -z "$cron_expr" ] || [ -z "$command" ]; then
-        echo -e "\n ${C_RED}❌ 参数缺失：任务 ID、表达式和命令不能为空！${C_RESET}"
+        echo -e "\n ❌ 参数缺失：任务 ID、表达式和命令不能为空！"
         return 1
     fi
 
@@ -138,7 +138,7 @@ cron_set_task() {
 
     uci $path_opt commit "$_UCI_CRON_FILE"
     cron_sync_item "$task_id"
-    echo -e "\n ${C_GREEN}✅ 已成功保存定时任务 [${task_id}]${C_RESET}"
+    echo -e "\n ✅ 已成功保存定时任务 [${task_id}]"
 }
 
 # 2. 根据 task_id 删除指定任务
@@ -151,7 +151,7 @@ cron_del_by_id() {
     uci $path_opt delete "${_UCI_CRON_FILE}.${task_id}" 2>/dev/null
     uci $path_opt commit "$_UCI_CRON_FILE"
     cron_unsync_item "$task_id"
-    echo -e "\n ${C_GREEN}✅ 已成功删除定时任务 [${task_id}]${C_RESET}"
+    echo -e "\n ✅ 已成功删除定时任务 [${task_id}]"
     return 0
 }
 
@@ -189,7 +189,7 @@ cron_menu() {
     while true; do
         clear
         main_line
-        print_center "⏱️ ${C_BOLD}${C_GREEN}定时任务管理${C_RESET}" 7
+        print_center "⏰ ${C_BOLD}${C_GREEN}定时任务管理${C_RESET}" 7
         sub_line
 
         local path_opt="$(_get_uci_path_opt)"
@@ -255,7 +255,7 @@ cron_menu() {
                 if [ -n "$target_id" ]; then
                     _cron_menu_detail "$target_id"
                 else
-                    echo -e "\n ${C_RED}❌ 无效选项，请重新输入！${C_RESET}"
+                    echo -e "\n ❌ 无效选项，请重新输入！"
                     pause
                 fi
                 ;;
@@ -297,10 +297,10 @@ cron() {
         sync)
             # 全量同步
             cron_sync_all
-            echo -e "\n${C_GREEN}✅ 定时任务已全部同步至系统 crontab${C_RESET}"
+            echo -e "\n ✅ 定时任务已全部同步至系统 crontab"
             ;;
         *)
-            echo -e "\n${C_RED}❌ 未知操作指令: '${action}'${C_RESET}"
+            echo -e "\n ❌ 未知操作指令: '${action}'"
             echo -e "  支持的指令: ${C_YELLOW}set | get | get_tag | del | del_tag | sync${C_RESET}"
             return 1
             ;;
@@ -323,16 +323,16 @@ _cron_menu_detail() {
         local expr=$(uci $path_opt -q get "${_UCI_CRON_FILE}.${t_id}.cron_expr")
         local cmd=$(uci $path_opt -q get "${_UCI_CRON_FILE}.${t_id}.command")
         local remark=$(uci $path_opt -q get "${_UCI_CRON_FILE}.${t_id}.remark")
-
-        echo -e "  🔖 标签 Tag     : ${tag:-N/A}"
-        echo -e "  🚀 运行状态     : $([ "$enabled" = "1" ] && echo -e "${C_GREEN}🟢 已启用${C_RESET}" || echo -e "${C_RED}🔴 已禁用${C_RESET}")"
-        echo -e "  ⏱️ Cron 表达式 : ${C_YELLOW}${expr}${C_RESET}"
-        echo -e "  🔧 执行命令     : ${C_BLUE}${cmd}${C_RESET}"
-        echo -e "  📝 备注说明     : ${remark:-无}"
+        # ❌ / ✖️ ➖ / 🚫 💣
+        echo -e "  🔖 Tag     : ${tag:-N/A}"
+        echo -e "  🚀 Enabled : $([ "$enabled" = "1" ] && echo -e "${C_GREEN}已启用${C_RESET}" || echo -e "${C_RED}已禁用${C_RESET}")"
+        echo -e "  ⏰ Cron    : ${C_YELLOW}${expr}${C_RESET}"
+        echo -e "  🔧 Cmd     : ${C_BLUE}${cmd}${C_RESET}"
+        echo -e "  📝 Remark  : ${remark:-无}"
 
         sub_line
-        echo -e "  ${C_GREEN}1)${C_RESET} 📝 修改任务配置"
-        echo -e "  ${C_GREEN}2)${C_RESET} 💥 立即删除任务"
+        echo -e "  ${C_GREEN}1)${C_RESET} 📝 修改任务"
+        echo -e "  ${C_GREEN}2)${C_RESET} ➖ 删除任务"
         sub_line
         echo -e "  ${C_GRAY}0)${C_RESET} 🔙 返回"
         main_line
@@ -363,7 +363,7 @@ _cron_menu_detail() {
                 ;;
             2)
                 echo ""
-                printf "  🚨 确定要永久删除任务 [${C_BOLD}%s${C_RESET}] 吗？ [y/N]: " "$t_id"
+                printf "  🚨 确定要删除任务 [${C_BOLD}%s${C_RESET}] 吗？ [y/N]: " "$t_id"
                 read -r confirm
                 case "$confirm" in
                     [yY])
@@ -372,7 +372,7 @@ _cron_menu_detail() {
                         return 0
                         ;;
                     *)
-                        echo -e "\n ${C_YELLOW}❗ 操作已取消${C_RESET}"
+                        echo -e "\n 🚫 已取消操作"
                         pause
                         ;;
                 esac
@@ -381,7 +381,7 @@ _cron_menu_detail() {
                 return 0
                 ;;
             *)
-                echo -e "\n ${C_RED}❌ 无效选项！${C_RESET}"
+                echo -e "\n ❌ 无效选项！"
                 pause
                 ;;
         esac
@@ -397,18 +397,18 @@ _cron_menu_add() {
 
     printf "  🔹 任务 ID (纯字母/数字/下划线): "
     read -r t_id
-    [ -z "$t_id" ] && { echo -e "\n ${C_RED}❌ 任务 ID 不能为空！${C_RESET}"; return 1; }
+    [ -z "$t_id" ] && { echo -e "\n ❌ 任务 ID 不能为空！"; return 1; }
 
     # 简单的格式防呆校验
     case "$t_id" in
         *[!a-zA-Z0-9_]*)
-            echo -e "\n ${C_RED}❌ 任务 ID 只能包含字母、数字和下划线！${C_RESET}"
+            echo -e "\n ❌ 任务 ID 只能包含字母、数字和下划线！"
             return 1
             ;;
     esac
 
     if cron_has_task "$t_id"; then
-        echo -e "\n ${C_RED}❌ 该任务 ID 已存在，请更换！${C_RESET}"
+        echo -e "\n ❌ 该任务 ID 已存在，请更换！"
         return 1
     fi
 

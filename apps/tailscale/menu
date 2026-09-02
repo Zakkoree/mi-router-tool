@@ -91,7 +91,7 @@ ts_logout() {
             echo -e "\n ✅ 已安全登出节点！"
             ;;
         *)
-            echo "已取消操作。"
+            echo "\n 🚫 已取消操作。"
             ;;
     esac
 }

@@ -500,7 +500,7 @@ toolkit_self_update() {
             pause
         fi
     else
-        echo -e "\n ❌ 已取消。"
+        echo -e "\n 🚫 已取消操作。"
         pause
     fi
 }
@@ -535,7 +535,7 @@ toolkit_uninstall() {
         cd /root 2>/dev/null || cd /
         exit 0
     else
-        echo " ❌ 已取消卸载操作。"
+        echo "\n 🚫 已取消操作。"
         pause
     fi
 }
@@ -796,7 +796,7 @@ wget.la|https://wget.la/
             read custom_mirror
 
             if [ -z "$custom_mirror" ]; then
-                echo -e "\n ${C_YELLOW}❌ 输入为空，已取消设置！${C_RESET}"
+                echo -e "\n ${C_YELLOW}🚫 已取消操作！${C_RESET}"
                 pause
             else
                 mikit_db set "mirror" "$custom_mirror"

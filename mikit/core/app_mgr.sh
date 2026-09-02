@@ -89,7 +89,7 @@ check_app_package() {
                 printf "是否仍要强行安装？(y/N): "
                 read force_install
                 if [ "$force_install" != "y" ] && [ "$force_install" != "Y" ]; then
-                    echo -e "\n ❌ 已取消安装。"
+                    echo -e "\n 🚫 已取消操作。"
                     return 1
                 fi
                 ;;
@@ -163,7 +163,7 @@ show_store_app_detail() {
             app_install_from_url "$url"
             ;;
         *)
-            echo -e "\n 已取消操作。"
+            echo -e "\n 🚫 已取消操作。"
             ;;
     esac
 }

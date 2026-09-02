@@ -211,7 +211,7 @@ upgrade_docker() {
     case "$CHOICE" in
         [yY]) ;;
         *)
-            echo -e "\n${C_YELLOW}❗ 用户已取消操作。${C_RESET}"
+            echo -e "\n ${C_YELLOW}🚫 已取消操作。${C_RESET}"
             return 0
             ;;
     esac
@@ -345,7 +345,7 @@ install_docker_patch() {
             fi
             ;;
         *)
-            echo -e "\n${C_YELLOW}用户已取消操作。${C_RESET}"
+            echo -e "\n ${C_YELLOW}🚫 已取消操作。${C_RESET}"
             ;;
     esac
 }
@@ -417,7 +417,7 @@ install_docker_compose() {
     case "$CHOICE" in
         [yY]) ;;
         *)
-            echo -e "\n${C_YELLOW}❗ 用户已取消下载，操作终止。${C_RESET}"
+            echo -e "\n ${C_YELLOW}🚫 已取消操作。${C_RESET}"
             return 0
             ;;
     esac
@@ -480,7 +480,7 @@ manage_docker_mirrors() {
                     uci commit mi_docker
                     echo -e "\n ${C_GREEN}✅ 已添加镜像源: ${custom_m}${C_RESET}"
                 else
-                    echo -e "\n ${C_YELLOW}❌ 输入为空，操作已取消！${C_RESET}"
+                    echo -e "\n ${C_YELLOW}🚫 已取消操作！${C_RESET}"
                 fi
                 pause
                 ;;
