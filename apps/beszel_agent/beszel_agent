@@ -27,7 +27,7 @@ post_install() {
     mips*) [ "$HARDWARE_COMPLETE" = "0" ] && arch="$arch-softfloat" ;;
 
     esac
-    local url="${MIRROR}https://github.com/henrygd/beszel/releases/download/v0.18.8/beszel-agent_linux_${arch}.tar.gz"
+    local url="${MIRROR}https://github.com/henrygd/beszel/releases/download/v0.21.0/beszel-agent_linux_${arch}.tar.gz"
     if ! curl -fSL --progress-bar --connect-timeout 5 "$url" -o "$tmp_download" || [ ! -s "$tmp_download" ]; then
         echo -e "\n ❌ beszel-agent 下载失败，请重新尝试卸载重装！"
         rm -f "$tmp_download" 2>/dev/null
